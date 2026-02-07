@@ -18,7 +18,7 @@ Aquest és l'únic repositori oficial de Sudoku E-ink. Només descarrega l'aplic
 
 🔒 **Autor:** ktacrack  
 📄 **Llicència:** MIT License  
-🔗 **Official URL:** [https://github.com/ktacrack/sudokueink](https://github.com/ktacrack/SudokuEink)
+🔗 **Official URL:** [https://github.com/ktacrack/SudokuEink](https://github.com/ktacrack/SudokuEink)
 
 ---
 
