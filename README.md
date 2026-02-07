@@ -1,8 +1,8 @@
 # Sudoku E-ink
 
-![Release](https://img.shields.io/github/v/release/ktacrack/sudoku-eink)
+![Release](https://img.shields.io/github/v/release/ktacrack/sudokueink)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Downloads](https://img.shields.io/github/downloads/ktacrack/sudoku-eink/total)
+![Downloads](https://img.shields.io/github/downloads/ktacrack/sudokueink/total)
 ![Platform](https://img.shields.io/badge/platform-Android-green)
 ![Language](https://img.shields.io/badge/language-Kotlin-purple)
 
