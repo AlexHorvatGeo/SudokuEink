@@ -214,9 +214,17 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
         false
     }
 
-    LaunchedEffect(isComplete, isCorrect) {
-        if (isComplete) {
-            if (isCorrect) {
+    // Detectar quan es completa el Sudoku
+    LaunchedEffect(boardState) {
+        val complete = boardState.all { row -> row.all { it.value != 0 } }
+        if (complete && !showVictoryDialog) {
+            val correct = boardState.mapIndexed { r, row ->
+                row.mapIndexed { c, cell ->
+                    cell.value == solution[r][c]
+                }.all { it }
+            }.all { it }
+
+            if (correct) {
                 // Registrar estadística
                 StatisticsManager.recordCompletion(context, difficulty, currentElapsedSeconds)
                 showVictoryDialog = true
@@ -243,15 +251,15 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
                 Spacer(modifier = Modifier.height((36 * scale).dp))
 
                 // Botó Back a dalt a l'esquerra
-                    Button(
-                        onClick = onBack,
-                        modifier = Modifier
-                            .offset(x = (10 * scale).dp)
-                            .width((160 * scale).dp)
-                            .height((50 * scale).dp)
-                    ) {
-                        Text(strings.back, fontSize = (20 * scale).sp)
-                    }
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .offset(x = (10 * scale).dp)
+                        .width((160 * scale).dp)
+                        .height((50 * scale).dp)
+                ) {
+                    Text(strings.back, fontSize = (20 * scale).sp)
+                }
 
                 Spacer(modifier = Modifier.height(0.dp))
 
@@ -431,7 +439,10 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
                                         containerColor = if (selectedNumber == number) Color.Black else Color.White,
                                         contentColor = if (selectedNumber == number) Color.White else Color.Black
                                     ),
-                                    border = BorderStroke((2 * scale).dp, MaterialTheme.colorScheme.onBackground),
+                                    border = BorderStroke(
+                                        (2 * scale).dp,
+                                        MaterialTheme.colorScheme.onBackground
+                                    ),
                                     contentPadding = PaddingValues(0.dp)
                                 ) {
                                     Text(text = number.toString(), fontSize = (32 * scale).sp)
@@ -461,8 +472,10 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
                     ),
                     border = BorderStroke((2 * scale).dp, MaterialTheme.colorScheme.onBackground)
                 ) {
-                    Text(if (isPencilMode) strings.pencilOn else strings.pencilOff,
-                        fontSize = (20 * scale).sp)
+                    Text(
+                        if (isPencilMode) strings.pencilOn else strings.pencilOff,
+                        fontSize = (20 * scale).sp
+                    )
                 }
 
                 Spacer(modifier = Modifier.height((8 * scale).dp))
@@ -478,8 +491,10 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
                     ),
                     border = BorderStroke((2 * scale).dp, MaterialTheme.colorScheme.onBackground)
                 ) {
-                    Text(if (isNotesMode) strings.notesOn else strings.notesOff,
-                        fontSize = (20 * scale).sp)
+                    Text(
+                        if (isNotesMode) strings.notesOn else strings.notesOff,
+                        fontSize = (20 * scale).sp
+                    )
                 }
 
                 Spacer(modifier = Modifier.height((8 * scale).dp))
@@ -584,7 +599,7 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
         ) {
             Spacer(modifier = Modifier.height((38 * scale).dp))
 
-        // FILA SUPERIOR: Botó tornar (esquerra) i Nou Joc (dreta)
+            // FILA SUPERIOR: Botó tornar (esquerra) i Nou Joc (dreta)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -767,7 +782,10 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
                             containerColor = if (selectedNumber == number) Color.Black else Color.White,
                             contentColor = if (selectedNumber == number) Color.White else Color.Black
                         ),
-                        border = BorderStroke((2 * scale).dp, MaterialTheme.colorScheme.onBackground),
+                        border = BorderStroke(
+                            (2 * scale).dp,
+                            MaterialTheme.colorScheme.onBackground
+                        ),
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         Text(
@@ -929,272 +947,292 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
             }
         }
     }
-        // Diàleg de canvas de dibuix
-        if (showDrawingCanvas) {
-            AlertDialog(
-                onDismissRequest = { showDrawingCanvas = false },
-                title = { Text("Reconeixement de dígits", fontSize = (24 * scale).sp) },
-                text = {
-                    DrawingCanvas(
-                        onDigitRecognized = { digit ->
-                            // Col·locar el dígit reconegut a la cel·la seleccionada
-                            selectedCell?.let { (row, col) ->
-                                if (!boardState[row][col].isFixed && digit in 1..9) {
-                                    val newBoard = boardState.mapIndexed { r, rowList ->
-                                        rowList.mapIndexed { c, cell ->
-                                            if (r == row && c == col) {
-                                                if (isNotesMode) {
-                                                    // Mode notes: afegir/treure nota
-                                                    val newNotes = if (cell.notes.contains(digit)) {
-                                                        cell.notes - digit
-                                                    } else {
-                                                        cell.notes + digit
-                                                    }
-                                                    cell.copy(notes = newNotes)
+    // Diàleg de canvas de dibuix
+    if (showDrawingCanvas) {
+        AlertDialog(
+            onDismissRequest = { showDrawingCanvas = false },
+            title = { Text("Reconeixement de dígits", fontSize = (24 * scale).sp) },
+            text = {
+                DrawingCanvas(
+                    onDigitRecognized = { digit ->
+                        // Col·locar el dígit reconegut a la cel·la seleccionada
+                        selectedCell?.let { (row, col) ->
+                            if (!boardState[row][col].isFixed && digit in 1..9) {
+                                val newBoard = boardState.mapIndexed { r, rowList ->
+                                    rowList.mapIndexed { c, cell ->
+                                        if (r == row && c == col) {
+                                            if (isNotesMode) {
+                                                // Mode notes: afegir/treure nota
+                                                val newNotes = if (cell.notes.contains(digit)) {
+                                                    cell.notes - digit
                                                 } else {
-                                                    // Mode normal: posar número
-                                                    cell.copy(value = digit, notes = emptySet())
+                                                    cell.notes + digit
                                                 }
+                                                cell.copy(notes = newNotes)
                                             } else {
-                                                cell
+                                                // Mode normal: posar número
+                                                cell.copy(value = digit, notes = emptySet())
                                             }
+                                        } else {
+                                            cell
                                         }
                                     }
-                                    updateBoard(newBoard)
                                 }
+                                updateBoard(newBoard)
                             }
-                            showDrawingCanvas = false
-                        },
-                        onDismiss = { showDrawingCanvas = false }
-                    )
-                },
-                confirmButton = {}
-            )
-        }
-        // Diàleg de victòria
-        if (showVictoryDialog) {
-            AlertDialog(
-                onDismissRequest = { showVictoryDialog = false },
-                title = {
-                    Text(
-                        text = strings.congratulations,
-                        fontSize = (32 * scale).sp,
-                        lineHeight = (40 * scale).sp
-                    )
-                },
-                text = {
-                    Text(
-                        text = "${strings.completed}\n\n${strings.time} $timerText",
-                        fontSize = (24 * scale).sp,
-                        lineHeight = (32 * scale).sp,
-                        textAlign = TextAlign.Center
-                    )
-                },
-                confirmButton = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy((8 * scale).dp)
-                    ) {
-                        // Botó NOU SUDOKU
-                        Button(
-                            onClick = {
-                                showVictoryDialog = false
-                                shouldSaveOnExit = false
-                                GameStateManager.clearGame(context, difficulty)
-                                resetTrigger++
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height((50 * scale).dp)
-                        ) {
-                            Text(strings.newGame, fontSize = (18 * scale).sp)
                         }
-
-                        // Botó TORNAR AL MENÚ
-                        Button(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height((50 * scale).dp)
-                        ) {
-                            Text(strings.backToMenu, fontSize = (18 * scale).sp)
-                        }
-                    }
-                },
-                dismissButton = null
-            )
-        }
-
-        // Diàleg d'error
-        if (showErrorDialog) {
-            AlertDialog(
-                onDismissRequest = { showErrorDialog = false },
-                title = {
-                    Text(
-                        text = strings.error,
-                        fontSize = (32 * scale).sp,
-                        color = Color.Red
-                    )
-                },
-                text = {
-                    Text(
-                        text = strings.errorMessage,
-                        fontSize = (24 * scale).sp,
-                        lineHeight = (32 * scale).sp
-                    )
-                },
-                confirmButton = {
+                        showDrawingCanvas = false
+                    },
+                    onDismiss = { showDrawingCanvas = false }
+                )
+            },
+            confirmButton = {}
+        )
+    }
+    // Diàleg de victòria
+    if (showVictoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showVictoryDialog = false },
+            title = {
+                Text(
+                    text = strings.congratulations,
+                    fontSize = (32 * scale).sp,
+                    lineHeight = (40 * scale).sp
+                )
+            },
+            text = {
+                Text(
+                    text = "${strings.completed}\n\n${strings.time} $timerText",
+                    fontSize = (24 * scale).sp,
+                    lineHeight = (32 * scale).sp,
+                    textAlign = TextAlign.Center
+                )
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy((8 * scale).dp)
+                ) {
+                    // Botó NOU SUDOKU
                     Button(
-                        onClick = { showErrorDialog = false },
-                        modifier = Modifier.height((50 * scale).dp)
-                    ) {
-                        Text(strings.review, fontSize = (18 * scale).sp)
-                    }
-                }
-            )
-        }
-    }
-
-@Composable
-fun SudokuBoard(
-    board: List<List<SudokuCell>>,
-    solution: List<List<Int>>,
-    selectedCell: Pair<Int, Int>?,
-    onCellClick: (Int, Int) -> Unit
-) {
-    val scale = AdaptiveSizes.getScaleFactor()
-    val configuration = LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp
-
-    // Calcular mida real de cada cel·la
-    val cellSize = (screenWidthDp - 32) / 9  // Restar padding i dividir per 9
-    val noteScale = (cellSize / 40f).coerceIn(0.2f, 2.2f)  // Escala específica per notes
-
-    // Padding adaptatiu
-    val notePadding = when {
-        screenWidthDp < 360 -> (2 * scale).dp
-        screenWidthDp < 600 -> (2 * scale).dp
-        else -> (8 * scale).dp
-    }
-
-    Column(
-        modifier = Modifier
-            .aspectRatio(1f)
-            .border((3 * scale).dp, Color.Black)
-    ) {
-        for (row in 0 until 9) {
-            Row(modifier = Modifier.weight(1f)) {
-                for (col in 0 until 9) {
-                    val cell = board[row][col]
-                    val isSelected = selectedCell == Pair(row, col)
-
-                    // Determinar el color del text
-                    val textColor = when {
-                        cell.isFixed -> Color(0xFF263238) // Números inicials
-                        cell.value == 0 -> Color.Black  // Cel·la buida
-                        else -> Color(0xFF2196F3)  // Tots els números de l'usuari en blau
-                    }
-
-                    val topBorder = when {
-                        row == 3 || row == 6 -> (2 * scale).dp
-                        else -> (0.5 * scale).dp
-                    }
-                    val leftBorder = when {
-                        col == 3 || col == 6 -> (2 * scale).dp
-                        else -> (0.5 * scale).dp
-                    }
-                    val bottomBorder = if (row == 8) 0.dp else (0.5 * scale).dp
-                    val rightBorder = if (col == 8) 0.dp else (0.5 * scale).dp
-
-                    Box(
+                        onClick = {
+                            showVictoryDialog = false
+                            shouldSaveOnExit = false
+                            GameStateManager.clearGame(context, difficulty)
+                            resetTrigger++
+                        },
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight()
-                            .background(
-                                when {
-                                    isSelected -> Color(0xFFFFE082)     // Seleccionada: groc pastel
-                                    cell.isFixed -> Color(0xFFE0E0E0)   // Fixa: gris mitjà
-                                    else -> Color.White                 // Editable: blanc
-                                }
-                            )
-                            .clickable { onCellClick(row, col) }
-                            .drawBehind {
-                                drawLine(
-                                    color = Color.Black,
-                                    start = Offset(0f, topBorder.toPx() / 2),
-                                    end = Offset(size.width, topBorder.toPx() / 2),
-                                    strokeWidth = topBorder.toPx()
-                                )
-                                drawLine(
-                                    color = Color.Black,
-                                    start = Offset(leftBorder.toPx() / 2, 0f),
-                                    end = Offset(leftBorder.toPx() / 2, size.height),
-                                    strokeWidth = leftBorder.toPx()
-                                )
-                                if (bottomBorder > 0.dp) {
-                                    drawLine(
-                                        color = Color.Black,
-                                        start = Offset(0f, size.height - bottomBorder.toPx() / 2),
-                                        end = Offset(size.width, size.height - bottomBorder.toPx() / 2),
-                                        strokeWidth = bottomBorder.toPx()
-                                    )
-                                }
-                                if (rightBorder > 0.dp) {
-                                    drawLine(
-                                        color = Color.Black,
-                                        start = Offset(size.width - rightBorder.toPx() / 2, 0f),
-                                        end = Offset(size.width - rightBorder.toPx() / 2, size.height),
-                                        strokeWidth = rightBorder.toPx()
-                                    )
-                                }
-                            },
-                        contentAlignment = Alignment.Center
+                            .height((50 * scale).dp),
+                        contentPadding = PaddingValues(0.dp)
                     ) {
-                        if (cell.value != 0) {
-                            // Mostrar número principal
-                            Text(
-                                text = cell.value.toString(),
-                                fontSize = (30 * scale).sp,
-                                color = textColor,
-                                fontWeight = if (cell.isFixed) FontWeight.Bold else FontWeight.Normal
-                            )
-                        } else if (cell.notes.isNotEmpty()) {
-                            // Mostrar notes en una graella 3x3
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(notePadding),  // ← Padding ajustat a mida
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy((0 * noteScale).dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                        Text(strings.newGame, fontSize = (18 * scale).sp)
+                    }
+
+                    // Botó TORNAR AL MENÚ
+                    Button(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height((50 * scale).dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(strings.backToMenu, fontSize = (18 * scale).sp)
+                    }
+                }
+            },
+            dismissButton = null
+        )
+    }
+
+
+    // Diàleg d'error
+    if (showErrorDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showErrorDialog = false
+            },
+            title = {
+                Text(
+                    text = strings.error,
+                    fontSize = (32 * scale).sp,
+                    lineHeight = (40 * scale).sp,
+                    color = Color.Red
+                )
+            },
+            text = {
+                Text(
+                    text = strings.errorMessage,
+                    fontSize = (24 * scale).sp,
+                    lineHeight = (32 * scale).sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showErrorDialog = false
+                    },
+                    modifier = Modifier.height((50 * scale).dp)
+                ) {
+                    Text(strings.review, fontSize = (18 * scale).sp)
+                }
+            }
+        )
+    }
+}
+    @Composable
+    fun SudokuBoard(
+        board: List<List<SudokuCell>>,
+        solution: List<List<Int>>,
+        selectedCell: Pair<Int, Int>?,
+        onCellClick: (Int, Int) -> Unit
+    ) {
+        val scale = AdaptiveSizes.getScaleFactor()
+        val configuration = LocalConfiguration.current
+        val screenWidthDp = configuration.screenWidthDp
+
+        // Calcular mida real de cada cel·la
+        val cellSize = (screenWidthDp - 32) / 9  // Restar padding i dividir per 9
+        val noteScale = (cellSize / 40f).coerceIn(0.2f, 2.2f)  // Escala específica per notes
+
+        // Padding adaptatiu
+        val notePadding = when {
+            screenWidthDp < 360 -> (2 * scale).dp
+            screenWidthDp < 600 -> (2 * scale).dp
+            else -> (8 * scale).dp
+        }
+
+        Column(
+            modifier = Modifier
+                .aspectRatio(1f)
+                .border((3 * scale).dp, Color.Black)
+        ) {
+            for (row in 0 until 9) {
+                Row(modifier = Modifier.weight(1f)) {
+                    for (col in 0 until 9) {
+                        val cell = board[row][col]
+                        val isSelected = selectedCell == Pair(row, col)
+
+                        // Determinar el color del text
+                        val textColor = when {
+                            cell.isFixed -> Color(0xFF263238) // Números inicials
+                            cell.value == 0 -> Color.Black  // Cel·la buida
+                            else -> Color(0xFF2196F3)  // Tots els números de l'usuari en blau
+                        }
+
+                        val topBorder = when {
+                            row == 3 || row == 6 -> (2 * scale).dp
+                            else -> (0.5 * scale).dp
+                        }
+                        val leftBorder = when {
+                            col == 3 || col == 6 -> (2 * scale).dp
+                            else -> (0.5 * scale).dp
+                        }
+                        val bottomBorder = if (row == 8) 0.dp else (0.5 * scale).dp
+                        val rightBorder = if (col == 8) 0.dp else (0.5 * scale).dp
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .background(
+                                    when {
+                                        isSelected -> Color(0xFFFFE082)     // Seleccionada: groc pastel
+                                        cell.isFixed -> Color(0xFFE0E0E0)   // Fixa: gris mitjà
+                                        else -> Color.White                 // Editable: blanc
+                                    }
+                                )
+                                .clickable { onCellClick(row, col) }
+                                .drawBehind {
+                                    drawLine(
+                                        color = Color.Black,
+                                        start = Offset(0f, topBorder.toPx() / 2),
+                                        end = Offset(size.width, topBorder.toPx() / 2),
+                                        strokeWidth = topBorder.toPx()
+                                    )
+                                    drawLine(
+                                        color = Color.Black,
+                                        start = Offset(leftBorder.toPx() / 2, 0f),
+                                        end = Offset(leftBorder.toPx() / 2, size.height),
+                                        strokeWidth = leftBorder.toPx()
+                                    )
+                                    if (bottomBorder > 0.dp) {
+                                        drawLine(
+                                            color = Color.Black,
+                                            start = Offset(
+                                                0f,
+                                                size.height - bottomBorder.toPx() / 2
+                                            ),
+                                            end = Offset(
+                                                size.width,
+                                                size.height - bottomBorder.toPx() / 2
+                                            ),
+                                            strokeWidth = bottomBorder.toPx()
+                                        )
+                                    }
+                                    if (rightBorder > 0.dp) {
+                                        drawLine(
+                                            color = Color.Black,
+                                            start = Offset(size.width - rightBorder.toPx() / 2, 0f),
+                                            end = Offset(
+                                                size.width - rightBorder.toPx() / 2,
+                                                size.height
+                                            ),
+                                            strokeWidth = rightBorder.toPx()
+                                        )
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (cell.value != 0) {
+                                // Mostrar número principal
+                                Text(
+                                    text = cell.value.toString(),
+                                    fontSize = (30 * scale).sp,
+                                    color = textColor,
+                                    fontWeight = if (cell.isFixed) FontWeight.Bold else FontWeight.Normal
+                                )
+                            } else if (cell.notes.isNotEmpty()) {
+                                // Mostrar notes en una graella 3x3
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(notePadding),  // ← Padding ajustat a mida
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    for (rowNotes in 0 until 3) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .weight(1f),
-                                            horizontalArrangement = Arrangement.SpaceEvenly,  // ← SIN espais entre columnes
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            for (colNotes in 0 until 3) {
-                                                val noteNumber = rowNotes * 3 + colNotes + 1
-                                                Box(
-                                                    modifier = Modifier.weight(1f),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(
-                                                        text = if (cell.notes.contains(noteNumber)) {
-                                                            noteNumber.toString()  // ← Mostra el número
-                                                        } else {
-                                                            ""  // ← Espai buit però manté la posició
-                                                        },
-                                                        fontSize = (10 * noteScale).sp,
-                                                        color = Color.Gray,
-                                                        textAlign = TextAlign.Center,
-                                                        lineHeight = (8 * noteScale).sp
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy((0 * noteScale).dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        for (rowNotes in 0 until 3) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .weight(1f),
+                                                horizontalArrangement = Arrangement.SpaceEvenly,  // ← SIN espais entre columnes
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                for (colNotes in 0 until 3) {
+                                                    val noteNumber = rowNotes * 3 + colNotes + 1
+                                                    Box(
+                                                        modifier = Modifier.weight(1f),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(
+                                                            text = if (cell.notes.contains(
+                                                                    noteNumber
+                                                                )
+                                                            ) {
+                                                                noteNumber.toString()  // ← Mostra el número
+                                                            } else {
+                                                                ""  // ← Espai buit però manté la posició
+                                                            },
+                                                            fontSize = (10 * noteScale).sp,
+                                                            color = Color.Gray,
+                                                            textAlign = TextAlign.Center,
+                                                            lineHeight = (8 * noteScale).sp
                                                         )
                                                     }
                                                 }
@@ -1209,7 +1247,6 @@ fun SudokuBoard(
             }
         }
     }
-
 @Composable
 fun rememberTimer(
     resetTrigger: Int = 0,
