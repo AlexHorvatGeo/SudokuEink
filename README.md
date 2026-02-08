@@ -24,16 +24,48 @@ Aquest és l'únic repositori oficial de Sudoku E-ink. Només descarrega l'aplic
 
 ## Característiques
 
-- 🎮 **3 nivells de dificultat:** Fàcil, Mitjà i Difícil
-- 🧩 **Generador de Sudokus intel·ligent** amb TensorFlow Lite
-- ⏱️ **Cronòmetre integrat** per mesurar el teu temps
-- 📊 **Estadístiques detallades:** partides completades i millor temps per dificultat
-- 🔄 **Reiniciar partida** en qualsevol moment
-- 📱 **Disseny optimitzat per e-ink** amb contrast alt i interfície neta
-- 🌍 **Multiidioma:**
-  - Català
-  - Español
-  - English
+### 🎮 Gameplay
+- **3 nivells de dificultat:** Fàcil, Mitjà i Difícil
+- **Generador de Sudokus intel·ligent** amb algoritmes optimitzats
+- **Sistema de pistes** limitat per dificultat (5/3/1)
+- **Mode notes** per anotar possibles números
+- **Desfer moviments** amb historial il·limitat
+- **Reiniciar partida** en qualsevol moment
+
+### ⏱️ Timer i Gestió de Partides
+- **Cronòmetre amb controls:** pausa, reprendre i reiniciar temps
+- **Partides guardades independents** per cada nivell de dificultat
+- **Autoguardat** en sortir de la partida
+- **Recuperació automàtica** de partides en curs
+
+### ✏️ Reconeixement d'Escriptura
+- **Mode llapis global** per reconeixement ràpid
+- **Reconeixement de dígits escrits a mà** amb TensorFlow Lite
+- **Canvas de dibuix escalat** adaptatiu a tot tipus de pantalles
+- **Integració perfecta** amb el mode notes
+
+### 📊 Estadístiques
+- **Partides completades** per dificultat
+- **Millor temps** registrat per cada nivell
+- **Històric persistent** de resultats
+
+### 🎨 Optimitzat per E-ink
+- **Disseny alt contrast** específic per pantalles de tinta electrònica
+- **Diferenciació visual clara:** números fixos (negre + negreta) vs usuari (gris + light)
+- **Colors optimitzats** per a blanc i negre
+- **Fons de cel·les diferenciats** per millor llegibilitat
+- **Interfície neta** sense distraccions
+
+### 📱 Experiència Adaptativa
+- **Escalat intel·ligent** per tot tipus de pantalles (telèfons, tablets)
+- **Layout adaptatiu:** vertical per telèfons, horitzontal per tablets
+- **Controls optimitzats** per cada mida de pantalla
+- **Botons escalats** proporcionals al dispositiu
+
+### 🌍 Multiidioma
+- **Català** (CA)
+- **Español** (ES)
+- **English** (EN)
 
 ## Instal·lació
 
@@ -95,26 +127,33 @@ sudoku-eink/
 │           │   ├── Strings.kt
 │           │   ├── Navigation.kt
 │           │   ├── DrawingCanvas.kt
-│           │   ├── EinkOptimizations.kt
 │           │   ├── DigitRecognizer.kt
+│           │   ├── AdaptiveSizes.kt
+│           │   ├── EinkOptimizations.kt
 │           │   └── ThemeManager.kt
 │           ├── res/
 │           │   └── mipmap/
 │           │       ├── ic_launcher.png
 │           │       └── ic_launcher_round.png
 │           ├── assets/
-│           │   └── sudoku_model.tflite (si tens model TensorFlow)
+│           │   └── mnist.tflite
 │           └── AndroidManifest.xml
 ├── gradle/
 ├── images/
-│   ├── screenshot1.png
-│   └── screenshot2.png
+│   ├── Menu_catala.png
+│   ├── Menu_english.png
+│   ├── Joc_catala.png
+│   ├── Joc_english.png
+│   ├── Stats_catala.png
+│   └── Stats_english.png
 ├── .gitignore
 ├── build.gradle.kts
 ├── settings.gradle.kts
 ├── LICENSE
+├── CHANGELOG.md
 ├── README.md
 └── README.en.md
+
 ```
 
 ## Com jugar
