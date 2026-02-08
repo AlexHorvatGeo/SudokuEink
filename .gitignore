@@ -1,15 +1,63 @@
-*.iml
+# Gradle files
 .gradle
+.gradle/
+/build
+build/
+
+# Local configuration file (sdk path, etc)
+local.properties
 /local.properties
+
+# Android Studio generated files and folders
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+.idea/misc.xml
+.idea/deploymentTargetDropDown.xml
+.idea/render.experimental.xml
+
+# Log/OS Files
+*.log
 .DS_Store
-/build
+
+# Android Studio captures folder
+captures/
 /captures
+
+# Build outputs
 .externalNativeBuild
+.externalNativeBuild/
 .cxx
-local.properties
+.cxx/
+*.aab
+*.apk
+output-metadata.json
+
+# App release outputs
+app/release/
+
+# Keystore files (important!)
+*.jks
+*.keystore
+key.properties
+
+# Google Services (e.g. APIs or Firebase)
+google-services.json
+
+# Android Profiling
+*.hprof
+
+# ← AFEGIR AIXÒ ↓
+
+# IntelliJ
+*.iml
+.idea/
+out/
+
+# Temporals
+*.swp
+*~
+*.tmp
