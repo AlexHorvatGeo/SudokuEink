@@ -87,7 +87,7 @@ cd sudokueink
 ## Requirements
 - Android 8.0 (API 26) or higher
 - E-ink display recommended (works on any screen)
-- ~15 MB of free storage
+- ~15-20 MB of free storage
 
 ## Screenshots
 <p>
