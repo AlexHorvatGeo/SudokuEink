@@ -28,7 +28,7 @@ fun StatisticsScreen(onBack: () -> Unit) {
             .padding((16 * scale).dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height((32 * scale).dp))
+        Spacer(modifier = Modifier.height((38 * scale).dp))
 
         Button(
             onClick = onBack,
