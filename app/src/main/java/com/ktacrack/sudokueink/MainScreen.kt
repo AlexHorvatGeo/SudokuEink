@@ -62,7 +62,7 @@ fun MainScreen(
                             containerColor = if (currentLanguage == Language.CATALAN) Color.Black else Color.White,
                             contentColor = if (currentLanguage == Language.CATALAN) Color.White else Color.Black
                         ),
-                        border = BorderStroke((2 * scale).dp, Color.Black),
+                        border = BorderStroke((2 * scale).dp, MaterialTheme.colorScheme.onBackground),
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         Text("CA", fontSize = (34 * scale).sp)
@@ -79,7 +79,7 @@ fun MainScreen(
                             containerColor = if (currentLanguage == Language.SPANISH) Color.Black else Color.White,
                             contentColor = if (currentLanguage == Language.SPANISH) Color.White else Color.Black
                         ),
-                        border = BorderStroke((2 * scale).dp, Color.Black),
+                        border = BorderStroke((2 * scale).dp, MaterialTheme.colorScheme.onBackground),
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         Text("ES", fontSize = (34 * scale).sp)
@@ -96,7 +96,7 @@ fun MainScreen(
                             containerColor = if (currentLanguage == Language.ENGLISH) Color.Black else Color.White,
                             contentColor = if (currentLanguage == Language.ENGLISH) Color.White else Color.Black
                         ),
-                        border = BorderStroke((2 * scale).dp, Color.Black),
+                        border = BorderStroke((2 * scale).dp, MaterialTheme.colorScheme.onBackground),
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         Text("EN", fontSize = (34 * scale).sp)

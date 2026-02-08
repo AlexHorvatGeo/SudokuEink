@@ -72,12 +72,28 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
             SudokuGenerator.generate(difficulty)
         }
     }
-    // Guardar el tauler inicial per poder reiniciar
+
+    // Guardar el tauler REALMENT inicial (només números fixos) per poder reiniciar
     val initialBoard = remember(resetTrigger) {
-        initialGame.board.map { row ->
-            row.map { cell -> cell.copy() }
+        if (savedGame != null) {
+            // Si ve de partida guardada, crear tauler només amb fixos
+            savedGame.board.map { row ->
+                row.map { savedCell ->
+                    SudokuCell(
+                        value = if (savedCell.isFixed) savedCell.value else 0,
+                        isFixed = savedCell.isFixed,
+                        notes = emptySet()
+                    )
+                }
+            }
+        } else {
+            // Si és nou joc, usar l'inicial directament
+            initialGame.board.map { row ->
+                row.map { cell -> cell.copy() }
+            }
         }
     }
+
     // Guardem la solució correcta
     val solution = remember(resetTrigger) { initialGame.solution }
 
@@ -264,11 +280,11 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
                             Icon(
                                 imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                                 contentDescription = if (isPaused) "Reprendre" else "Pausar",
-                                modifier = Modifier.size((20 * scale).dp)
+                                modifier = Modifier.size((24 * scale).dp)
                             )
                         }
 
-                        Text(text = timerText, fontSize = (20 * scale).sp)
+                        Text(text = timerText, fontSize = (24 * scale).sp)
 
                         IconButton(
                             onClick = {
@@ -280,7 +296,7 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Reiniciar temps",
-                                modifier = Modifier.size((20 * scale).dp)
+                                modifier = Modifier.size((24 * scale).dp)
                             )
                         }
                     }
@@ -640,11 +656,11 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
                             Icon(
                                 imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
                                 contentDescription = if (isPaused) "Reprendre" else "Pausar",
-                                modifier = Modifier.size((20 * scale).dp)
+                                modifier = Modifier.size((24 * scale).dp)
                             )
                         }
 
-                        Text(text = timerText, fontSize = (20 * scale).sp)
+                        Text(text = timerText, fontSize = (24 * scale).sp)
 
                         IconButton(
                             onClick = {
@@ -656,7 +672,7 @@ fun GameScreen(difficulty: Difficulty, onBack: () -> Unit) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Reiniciar temps",
-                                modifier = Modifier.size((20 * scale).dp)
+                                modifier = Modifier.size((24 * scale).dp)
                             )
                         }
                     }
@@ -1052,7 +1068,7 @@ fun SudokuBoard(
 
                     // Determinar el color del text
                     val textColor = when {
-                        cell.isFixed -> Color.Black  // Números inicials
+                        cell.isFixed -> Color(0xFF263238) // Números inicials
                         cell.value == 0 -> Color.Black  // Cel·la buida
                         else -> Color(0xFF2196F3)  // Tots els números de l'usuari en blau
                     }
@@ -1074,9 +1090,9 @@ fun SudokuBoard(
                             .fillMaxHeight()
                             .background(
                                 when {
-                                    isSelected -> Color(0xFFCCCCCC)
-                                    cell.isFixed -> Color.White
-                                    else -> Color(0xFFF5F5F5)
+                                    isSelected -> Color(0xFFFFE082)     // Seleccionada: groc pastel
+                                    cell.isFixed -> Color(0xFFE0E0E0)   // Fixa: gris mitjà
+                                    else -> Color.White                 // Editable: blanc
                                 }
                             )
                             .clickable { onCellClick(row, col) }
@@ -1118,7 +1134,7 @@ fun SudokuBoard(
                                 text = cell.value.toString(),
                                 fontSize = (30 * scale).sp,
                                 color = textColor,
-                                fontWeight = if (cell.isFixed) FontWeight.Bold else FontWeight.Light
+                                fontWeight = if (cell.isFixed) FontWeight.Bold else FontWeight.Normal
                             )
                         } else if (cell.notes.isNotEmpty()) {
                             // Mostrar notes en una graella 3x3
