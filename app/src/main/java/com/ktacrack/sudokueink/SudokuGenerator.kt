@@ -15,9 +15,8 @@ object SudokuGenerator {
             Difficulty.HARD -> 50
         }
 
-        // Creem el tauler amb caselles buides
-        val board = createPuzzle(solution, cellsToRemove)
-
+        // Creem el tauler amb caselles buides (amb verificació)
+        val board = createPuzzleWithUniqueCheck(solution, cellsToRemove)
         return SudokuGame(board, solution)
     }
 
@@ -60,7 +59,8 @@ object SudokuGenerator {
         return bands.flatten()
     }
 
-    private fun createPuzzle(
+    // ✅ NOVA FUNCIÓ: Crea puzzle verificant que tingui solució única
+    private fun createPuzzleWithUniqueCheck(
         solution: List<List<Int>>,
         cellsToRemove: Int
     ): List<List<SudokuCell>> {
@@ -70,19 +70,121 @@ object SudokuGenerator {
             }.toMutableList()
         }.toMutableList()
 
-        // Treiem caselles aleatòriament
+        // Llista de totes les posicions
+        val positions = (0 until 81).shuffled().toMutableList()
         var removed = 0
-        while (removed < cellsToRemove) {
-            val row = Random.nextInt(9)
-            val col = Random.nextInt(9)
+        var attemptIndex = 0
 
-            if (board[row][col].value != 0) {
+        while (removed < cellsToRemove && attemptIndex < positions.size) {
+            val pos = positions[attemptIndex]
+            val row = pos / 9
+            val col = pos % 9
+
+            // Guardar valor abans de treure'l
+            val backup = board[row][col].value
+
+            if (backup != 0) {
+                // Intentar treure el número
                 board[row][col] = SudokuCell(value = 0, isFixed = false)
-                removed++
+
+                // ✅ COMPROVACIÓ CLAU: Verificar que només hi ha 1 solució
+                if (hasUniqueSolution(board, solution)) {
+                    removed++
+                } else {
+                    // Si té múltiples solucions, tornar a posar el número
+                    board[row][col] = SudokuCell(value = backup, isFixed = true)
+                }
             }
+
+            attemptIndex++
         }
 
         // Convertim a llistes immutables
         return board.map { it.toList() }
+    }
+
+    // ✅ NOVA FUNCIÓ: Comprova si el puzzle té solució única
+    private fun hasUniqueSolution(
+        board: List<List<SudokuCell>>,
+        expectedSolution: List<List<Int>>
+    ): Boolean {
+        // Convertir a format de solver
+        val puzzle = board.map { row ->
+            row.map { cell -> cell.value }.toMutableList()
+        }.toMutableList()
+
+        // Comptar solucions (màxim 2 per eficiència)
+        val solutionCount = countSolutions(puzzle, 0, 0, 0)
+        return solutionCount == 1
+    }
+
+    // ✅ NOVA FUNCIÓ: Compta quantes solucions té un puzzle (màxim 2)
+    private fun countSolutions(
+        board: List<MutableList<Int>>,
+        row: Int,
+        col: Int,
+        count: Int
+    ): Int {
+        // Si ja hem trobat 2 solucions, parar (no cal seguir)
+        if (count >= 2) return count
+
+        // Trobar la següent casella buida
+        var r = row
+        var c = col
+        var found = false
+
+        outer@ for (i in r until 9) {
+            for (j in (if (i == r) c else 0) until 9) {
+                if (board[i][j] == 0) {
+                    r = i
+                    c = j
+                    found = true
+                    break@outer
+                }
+            }
+        }
+
+        // Si no hi ha més caselles buides, hem trobat una solució
+        if (!found) return count + 1
+
+        // Provar tots els números de 1 a 9
+        var currentCount = count
+        for (num in 1..9) {
+            if (isValidMove(board, r, c, num)) {
+                board[r][c] = num
+                currentCount = countSolutions(board, r, c + 1, currentCount)
+                board[r][c] = 0
+
+                // Si ja hem trobat 2 solucions, parar
+                if (currentCount >= 2) break
+            }
+        }
+
+        return currentCount
+    }
+
+    // ✅ NOVA FUNCIÓ: Comprova si un número és vàlid en una posició
+    private fun isValidMove(
+        board: List<List<Int>>,
+        row: Int,
+        col: Int,
+        num: Int
+    ): Boolean {
+        // Comprovar fila
+        if (board[row].contains(num)) return false
+
+        // Comprovar columna
+        if ((0 until 9).any { board[it][col] == num }) return false
+
+        // Comprovar caixa 3x3
+        val boxRow = (row / 3) * 3
+        val boxCol = (col / 3) * 3
+        for (r in boxRow until boxRow + 3) {
+            for (c in boxCol until boxCol + 3) {
+                if (board[r][c] == num) return false
+            }
+        }
+
+        return true
     }
 }
