@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # Changelog
 
+## [1.3] - 2026-02-10
+
+### Added
+- **New Game Mode: Attack Mode** - Complete sudokus against the clock
+    - Easy: 20 minutes time limit
+    - Medium: 30 minutes time limit
+    - Hard: 45 minutes time limit
+- Improved navigation system with difficulty submenu per game mode
+- Resume saved game dialog on game entry with paused timer
+- Multiple independent saved games (one per mode + difficulty combination)
+- Timeout dialog for Attack Mode when time runs out
+- Statistics now show best remaining time for Attack Mode
+
+### Fixed
+- Timer continuing after game completion
+- Timer jumping backwards on orientation changes
+- Timer not pausing during error dialog
+- Same sudoku appearing in Normal and Attack modes
+- Double arrow (←) in back button
+
+### Changed
+- Game state management now differentiates between game modes
+- Statistics display adapted for Attack Mode (remaining time vs. elapsed time)
+- Improved timer synchronization across all game states
+
+### Technical
+- Version code: 3 → 4
+- Version name: 1.2.0 → 1.3.0
+- Enhanced `GameStateManager` with mode parameter
+- Improved `rememberTimer` function with better pause handling
+- New `hasSavedGame()` function for checking saved games
+- Added `showResumeDialog` state for saved game prompts
+
+---
+
 ## [1.2.0] - 2026-02-10
 
 ### Added
@@ -45,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Reset button now works correctly after loading a saved game
 - Original initial board is now properly stored separately from saved game state
-  
+
 ### Added
 - Timer controls: pause, play, and restart buttons
 - Global pencil mode for quick handwriting recognition
