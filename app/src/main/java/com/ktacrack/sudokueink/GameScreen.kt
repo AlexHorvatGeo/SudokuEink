@@ -1455,7 +1455,7 @@ fun GameScreen(
                     },
                     modifier = Modifier.height((50 * scale).dp)
                 ) {
-                    Text(strings.review, fontSize = (18 * scale).sp)
+                    Text(strings.review, fontSize = (22 * scale).sp)
                 }
             }
         )
@@ -1502,7 +1502,7 @@ fun GameScreen(
                                 .height((50 * scale).dp),
                             contentPadding = PaddingValues(0.dp)
                         ) {
-                            Text(strings.newGame, fontSize = (18 * scale).sp)
+                            Text(strings.newGame, fontSize = (22 * scale).sp)
                         }
                     }
 
@@ -1513,7 +1513,7 @@ fun GameScreen(
                             .height((50 * scale).dp),
                         contentPadding = PaddingValues(0.dp)
                     ) {
-                        Text(strings.backToMenu, fontSize = (18 * scale).sp)
+                        Text(strings.backToMenu, fontSize = (22 * scale).sp)
                     }
                 }
             },
@@ -1585,7 +1585,7 @@ fun GameScreen(
                                 .height((50 * scale).dp),
                             contentPadding = PaddingValues(0.dp)
                         ) {
-                            Text(strings.newGame, fontSize = (18 * scale).sp)
+                            Text(strings.newGame, fontSize = (22 * scale).sp)
                         }
                     }
 
@@ -1596,7 +1596,7 @@ fun GameScreen(
                             .height((50 * scale).dp),
                         contentPadding = PaddingValues(0.dp)
                     ) {
-                        Text(strings.backToMenu, fontSize = (18 * scale).sp)
+                        Text(strings.backToMenu, fontSize = (22 * scale).sp)
                     }
                 }
             },
@@ -1652,7 +1652,7 @@ fun GameScreen(
                             .wrapContentHeight(),
                         contentPadding = PaddingValues(0.dp)
                     ) {
-                        Text(strings.continue_, fontSize = (20 * scale).sp)
+                        Text(strings.continue_, fontSize = (22 * scale).sp)
                     }
                     if (!isDaily) {
                         Button(
@@ -1671,7 +1671,7 @@ fun GameScreen(
                                 containerColor = MaterialTheme.colorScheme.secondary
                             )
                         ) {
-                            Text(strings.newGame, fontSize = (20 * scale).sp)
+                            Text(strings.newGame, fontSize = (22 * scale).sp)
                         }
                     }
                 }
