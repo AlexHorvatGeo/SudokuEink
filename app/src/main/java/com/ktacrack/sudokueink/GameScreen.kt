@@ -457,13 +457,16 @@ fun GameScreen(
         }
     }
 
-    // Aplica un dígit reconegut a una cel·la.
-    // digit == 0 (gest X): esborra completament la cel·la (valor i notes).
-    // asNote (subratllat): força nota i alterna el dígit al conjunt.
-    // Sense subratllat: respecta el mode de notes actual.
-    fun applyRecognizedDigit(row: Int, col: Int, digit: Int, asNote: Boolean = false) {
+    // Aplica els dígits reconeguts a una cel·la.
+    // Llista buida (gest X): esborra completament la cel·la (valor i notes).
+    // asNote: força notes. Un sol dígit sense asNote respecta el mode de notes.
+    // Múltiples dígits arriben sempre com a notes i s'afegeixen al conjunt.
+    fun applyRecognizedDigit(row: Int, col: Int, digits: List<Int>, asNote: Boolean = false) {
         if (boardState[row][col].isFixed) return
-        if (digit == 0) {
+        val valid = digits.filter { it in 1..9 }.distinct()
+
+        // X o cap dígit vàlid => esborrar la cel·la
+        if (valid.isEmpty()) {
             updateBoard(
                 boardState.mapIndexed { r, rowList ->
                     rowList.mapIndexed { c, cell ->
@@ -473,21 +476,23 @@ fun GameScreen(
             )
             return
         }
-        if (digit !in 1..9) return
+
         updateBoard(
             boardState.mapIndexed { r, rowList ->
                 rowList.mapIndexed { c, cell ->
                     if (r == row && c == col) {
-                        val toNote = asNote || notesMode == NotesMode.MANUAL
+                        val toNote = asNote || valid.size > 1 || notesMode == NotesMode.MANUAL
                         if (toNote) {
-                            val newNotes = if (cell.notes.contains(digit)) {
-                                cell.notes - digit
+                            // Un sol dígit alterna; múltiples s'afegeixen al conjunt
+                            val newNotes = if (valid.size == 1) {
+                                val d = valid.first()
+                                if (cell.notes.contains(d)) cell.notes - d else cell.notes + d
                             } else {
-                                cell.notes + digit
+                                cell.notes + valid
                             }
-                            cell.copy(notes = newNotes)
+                            cell.copy(value = 0, notes = newNotes)
                         } else {
-                            cell.copy(value = digit, notes = emptySet())
+                            cell.copy(value = valid.first(), notes = emptySet())
                         }
                     } else {
                         cell
@@ -673,8 +678,8 @@ fun GameScreen(
                         selectedCell = selectedCell,
                         pencilAutoMode = pencilMode == PencilMode.AUTO && !isPaused,
                         recognizer = digitRecognizer,
-                        onDigitDrawn = { row, col, digit, asNote ->
-                            if (!isPaused) applyRecognizedDigit(row, col, digit, asNote)
+                        onDigitDrawn = { row, col, digits, asNote ->
+                            if (!isPaused) applyRecognizedDigit(row, col, digits, asNote)
                         },
                         onCellClick = { row, col ->
                             if (!isPaused && !boardState[row][col].isFixed) {
@@ -1161,8 +1166,8 @@ fun GameScreen(
                 selectedCell = selectedCell,
                 pencilAutoMode = pencilMode == PencilMode.AUTO && !isPaused,
                 recognizer = digitRecognizer,
-                onDigitDrawn = { row, col, digit, asNote ->
-                    if (!isPaused) applyRecognizedDigit(row, col, digit, asNote)
+                onDigitDrawn = { row, col, digits, asNote ->
+                    if (!isPaused) applyRecognizedDigit(row, col, digits, asNote)
                 },
                 onCellClick = { row, col ->
                     if (!isPaused && !boardState[row][col].isFixed) {
@@ -1783,7 +1788,7 @@ fun SudokuBoard(
     onCellLongClick: ((Int, Int) -> Unit)? = null,
     pencilAutoMode: Boolean = false,
     recognizer: DigitRecognizer? = null,
-    onDigitDrawn: ((Int, Int, Int, Boolean) -> Unit)? = null
+    onDigitDrawn: ((Int, Int, List<Int>, Boolean) -> Unit)? = null
 ) {
     val scale = AdaptiveSizes.getScaleFactor()
     val configuration = LocalConfiguration.current
@@ -1815,44 +1820,124 @@ fun SudokuBoard(
         return if (dx * dy >= 0f) 1 else -1
     }
 
-    // Una X són dues diagonals grans amb pendents oposats
+    // Una X són dues diagonals de pendent oposat que a més se solapen a l'espai
+    // (es creuen), no dos traços diagonals separats de costat a costat.
     fun isCrossGesture(cellPaths: List<Path>, ends: List<Pair<Offset, Offset>>, w: Float, h: Float): Boolean {
-        val signs = cellPaths.zip(ends).mapNotNull { (p, e) -> diagonalSign(p, e, w, h) }
-        return signs.contains(1) && signs.contains(-1)
+        val diagonals = cellPaths.zip(ends).mapNotNull { (p, e) ->
+            val sign = diagonalSign(p, e, w, h) ?: return@mapNotNull null
+            sign to p.getBounds()
+        }
+        for (i in diagonals.indices) {
+            for (j in i + 1 until diagonals.size) {
+                val (s1, b1) = diagonals[i]
+                val (s2, b2) = diagonals[j]
+                if (s1 == s2) continue
+                val xOverlap = minOf(b1.right, b2.right) - maxOf(b1.left, b2.left)
+                val yOverlap = minOf(b1.bottom, b2.bottom) - maxOf(b1.top, b2.top)
+                if (xOverlap > 0f && yOverlap > 0f) return true
+            }
+        }
+        return false
     }
 
-    // Un traç és un "subratllat de nota" si és ample, gairebé horitzontal, i
-    // se situa a la meitat inferior de la cel·la (distint dels traços de dígit)
-    fun isUnderline(path: Path, w: Float, h: Float): Boolean {
-        val b = path.getBounds()
-        val wide = b.width >= 0.60f * w        // ocupa la major part de l'amplada
-        val flat = b.height <= 0.25f * h       // gairebé horitzontal
+    // Agrupa els traços per solapament 2D: dos traços van al mateix grup si les
+    // seves caixes es creuen (solapen en X i en Y). El solapament és transitiu
+    // (union-find), així els traços d'un dígit es fusionen encara que estiguin
+    // en qualsevol lloc de la cel·la. Dígits en regions separades = grups separats.
+    fun clusterByOverlap(cellPaths: List<Path>): List<List<Path>> {
+        if (cellPaths.isEmpty()) return emptyList()
+        val boxes = cellPaths.map { it.getBounds() }
+        val parent = IntArray(cellPaths.size) { it }
+
+        fun find(x: Int): Int {
+            var r = x
+            while (parent[r] != r) r = parent[r]
+            var c = x
+            while (parent[c] != c) { val n = parent[c]; parent[c] = r; c = n }
+            return r
+        }
+
+        for (i in boxes.indices) {
+            for (j in i + 1 until boxes.size) {
+                val a = boxes[i]
+                val b = boxes[j]
+                val xOverlap = minOf(a.right, b.right) - maxOf(a.left, b.left)
+                val yOverlap = minOf(a.bottom, b.bottom) - maxOf(a.top, b.top)
+                if (xOverlap > 0f && yOverlap > 0f) {
+                    parent[find(i)] = find(j)
+                }
+            }
+        }
+
+        // Agrupa per arrel, i ordena els grups d'esquerra a dreta per estabilitat
+        val groups = cellPaths.indices.groupBy { find(it) }
+        return groups.values
+            .map { idxs -> idxs.map { cellPaths[it] } }
+            .sortedBy { grp -> grp.minOf { it.getBounds().left } }
+    }
+
+    // Combina les caixes d'un grup de traços en una de sola
+    fun unionBounds(cluster: List<Path>): androidx.compose.ui.geometry.Rect {
+        return cluster.map { it.getBounds() }.reduce { a, b ->
+            androidx.compose.ui.geometry.Rect(
+                minOf(a.left, b.left), minOf(a.top, b.top),
+                maxOf(a.right, b.right), maxOf(a.bottom, b.bottom)
+            )
+        }
+    }
+
+    // Un GRUP és un "subratllat de nota" si és ample, gairebé horitzontal i baix.
+    // Com que el subratllat sempre és un traç separat que no se solapa amb cap
+    // dígit, forma el seu propi grup; una base plana d'un dígit s'agrupa amb la
+    // resta del dígit i per tant el grup sencer no serà pla.
+    fun isUnderline(b: androidx.compose.ui.geometry.Rect, w: Float, h: Float): Boolean {
+        val wide = b.width >= 0.25f * w        // prou ample (un traç separat i baix)
+        val flat = b.height <= 0.25f * h       // gairebé horitzontal (cap dígit ho és)
         val cy = (b.top + b.bottom) / 2f
         val low = cy >= 0.60f * h              // a la part baixa de la cel·la
         return wide && flat && low
     }
 
     // Reconeix la tinta acumulada d'una cel·la i l'escriu al tauler.
-    // Una X esborra la cel·la; un subratllat marca el dígit com a nota.
+    // Una X esborra la cel·la; un subratllat marca com a nota; múltiples dígits
+    // escrits de costat es converteixen automàticament en notes.
     fun recognizeCell(cell: Pair<Int, Int>, cellPaths: List<Path>, ends: List<Pair<Offset, Offset>>) {
         if (cellPaths.isEmpty() || recognizer == null) return
         val w = cellWidthPx.toFloat()
         val h = cellHeightPx.toFloat()
 
-        // Prioritat 1: una X esborra completament la cel·la (digit = 0)
+        // Prioritat 1: una X esborra completament la cel·la (llista buida)
         if (isCrossGesture(cellPaths, ends, w, h)) {
-            onDigitDrawn?.invoke(cell.first, cell.second, 0, false)
+            onDigitDrawn?.invoke(cell.first, cell.second, emptyList(), false)
             return
         }
 
-        val asNote = cellPaths.any { isUnderline(it, w, h) }
-        val digitStrokes = cellPaths.filterNot { isUnderline(it, w, h) }
-        if (digitStrokes.isEmpty()) return  // només un subratllat: no fem res
         val strokeWidthPx = 20f * scale
         val squarePx = minOf(cellWidthPx, cellHeightPx).coerceAtLeast(1)
-        val bitmap = pathsToBitmap(digitStrokes, squarePx, strokeWidthPx)
-        val digit = recognizer.recognizeDigit(bitmap)
-        onDigitDrawn?.invoke(cell.first, cell.second, digit, asNote)
+
+        // Pas 1: agrupem TOTS els traços per solapament 2D (un grup = un dígit o
+        // el subratllat, que sempre és un traç separat que no se solapa amb res).
+        val allClusters = clusterByOverlap(cellPaths)
+
+        // Pas 2: classifiquem cada grup. Un grup és subratllat si la seva caixa
+        // sencera és ampla/plana/baixa; altrament és un dígit.
+        val underlineClusters = allClusters.filter { isUnderline(unionBounds(it), w, h) }
+        val digitClusters = allClusters.filterNot { isUnderline(unionBounds(it), w, h) }
+        val underlined = underlineClusters.isNotEmpty()
+        if (digitClusters.isEmpty()) return  // només subratllat: no fem res
+
+        // Pas 3: més d'un grup de dígit => notes. Un subratllat també => notes.
+        val asNote = digitClusters.size > 1 || underlined
+
+        // Pas 4: reconeixem cada grup de dígit per separat
+        val digits = digitClusters
+            .map { recognizer.recognizeDigit(pathsToBitmap(it, squarePx, strokeWidthPx)) }
+            .filter { it in 1..9 }
+            .distinct()
+        if (digits.isEmpty()) return
+
+        // Pas 5: un sol grup i sense subratllat => valor; altrament => notes
+        onDigitDrawn?.invoke(cell.first, cell.second, digits, asNote)
     }
 
     // Quan s'acaba un traç, esperem una pausa i reconeixem el dígit
