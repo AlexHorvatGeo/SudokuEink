@@ -42,11 +42,8 @@ class DigitRecognizer(context: Context) {
 
     fun recognizeDigit(bitmap: Bitmap): Int {
         try {
-            // Centrar i retallar el dígit
-            val croppedBitmap = centerAndCropDigit(bitmap)
-
-            // Redimensionar a 28x28
-            val scaledBitmap = croppedBitmap.scale(inputSize, inputSize, true)
+            // Normalitzar a l'estil MNIST: dígit de ~20px centrat en un llenç 28x28
+            val scaledBitmap = centerAndCropDigit(bitmap)
 
             // Convertir a ByteBuffer
             val byteBuffer = convertBitmapToByteBuffer(scaledBitmap)
@@ -57,11 +54,8 @@ class DigitRecognizer(context: Context) {
             // Executar inferència
             interpreter.run(byteBuffer, result)
 
-            // DEBUG: Mostrar top 3 prediccions
-            val sorted = result[0].indices.sortedByDescending { result[0][it] }
-            println("Top 3: ${sorted[0]}(${result[0][sorted[0]]}), ${sorted[1]}(${result[0][sorted[1]]}), ${sorted[2]}(${result[0][sorted[2]]})")
-
             // Retornar el dígit amb més probabilitat
+            val sorted = result[0].indices.sortedByDescending { result[0][it] }
             return sorted[0]
 
         } catch (e: Exception) {
@@ -71,6 +65,9 @@ class DigitRecognizer(context: Context) {
         }
     }
 
+    // Normalitza a l'estil MNIST: retalla el dígit, l'escala perquè el costat més
+    // llarg sigui ~20px i el centra (per centre de massa) en un llenç 28x28 negre.
+    // Això fa que un dígit gran (sol) i un de petit (en un grup) es vegin iguals.
     private fun centerAndCropDigit(bitmap: Bitmap): Bitmap {
         var minX = bitmap.width
         var maxX = 0
@@ -82,8 +79,7 @@ class DigitRecognizer(context: Context) {
             for (x in 0 until bitmap.width) {
                 val pixel = bitmap[x, y]
                 val brightness = (Color.red(pixel) + Color.green(pixel) + Color.blue(pixel)) / 3
-
-                if (brightness > 128) { // Píxel blanc (traç)
+                if (brightness > 128) {
                     if (x < minX) minX = x
                     if (x > maxX) maxX = x
                     if (y < minY) minY = y
@@ -92,34 +88,45 @@ class DigitRecognizer(context: Context) {
             }
         }
 
-        // Si no s'ha trobat cap píxel, retornar el bitmap original
-        if (minX >= maxX || minY >= maxY) {
-            return bitmap
-        }
-
-        // Afegir padding (20% del tamany)
-        val padding = ((maxX - minX + maxY - minY) / 2 * 0.25f).toInt()
-        minX = (minX - padding).coerceAtLeast(0)
-        maxX = (maxX + padding).coerceAtMost(bitmap.width - 1)
-        minY = (minY - padding).coerceAtLeast(0)
-        maxY = (maxY + padding).coerceAtMost(bitmap.height - 1)
-
-        val width = maxX - minX
-        val height = maxY - minY
-
-        // Fer-lo quadrat
-        val size = maxOf(width, height)
-        val newBitmap = createBitmap(size, size)
-        val canvas = android.graphics.Canvas(newBitmap)
+        // Llenç de sortida 28x28 negre
+        val out = createBitmap(inputSize, inputSize)
+        val canvas = android.graphics.Canvas(out)
         canvas.drawColor(android.graphics.Color.BLACK)
 
-        val offsetX = (size - width) / 2
-        val offsetY = (size - height) / 2
+        if (minX > maxX || minY > maxY) return out  // sense tinta
 
-        val croppedBitmap = Bitmap.createBitmap(bitmap, minX, minY, width, height)  // ← Així
-        canvas.drawBitmap(croppedBitmap, offsetX.toFloat(), offsetY.toFloat(), null)
+        val width = maxX - minX + 1
+        val height = maxY - minY + 1
 
-        return newBitmap
+        // Escalar el costat més llarg a 20px, mantenint la proporció (marge de 4px)
+        val target = 20f
+        val factor = target / maxOf(width, height)
+        val scaledW = maxOf(1, (width * factor).toInt())
+        val scaledH = maxOf(1, (height * factor).toInt())
+
+        val cropped = Bitmap.createBitmap(bitmap, minX, minY, width, height)
+        val scaled = cropped.scale(scaledW, scaledH, true)
+
+        // Centre de massa del dígit escalat (convenció MNIST) per situar-lo
+        val sx = IntArray(scaledW * scaledH)
+        scaled.getPixels(sx, 0, scaledW, 0, 0, scaledW, scaledH)
+        var sumX = 0.0; var sumY = 0.0; var mass = 0.0
+        for (y in 0 until scaledH) {
+            for (x in 0 until scaledW) {
+                val p = sx[y * scaledW + x]
+                val b = (Color.red(p) + Color.green(p) + Color.blue(p)) / 3.0
+                if (b > 30) { sumX += x * b; sumY += y * b; mass += b }
+            }
+        }
+        val comX = if (mass > 0) (sumX / mass).toFloat() else scaledW / 2f
+        val comY = if (mass > 0) (sumY / mass).toFloat() else scaledH / 2f
+
+        // Situar de manera que el centre de massa caigui al centre del llenç 28x28
+        val left = (inputSize / 2f - comX)
+        val top = (inputSize / 2f - comY)
+        canvas.drawBitmap(scaled, left, top, null)
+
+        return out
     }
 
     private fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
