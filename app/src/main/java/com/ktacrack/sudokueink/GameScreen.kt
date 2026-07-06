@@ -458,10 +458,22 @@ fun GameScreen(
     }
 
     // Aplica un dígit reconegut a una cel·la.
-    // asNote (punt al racó): força nota i alterna el dígit al conjunt.
-    // Sense punt: respecta el mode de notes actual.
+    // digit == 0 (gest X): esborra completament la cel·la (valor i notes).
+    // asNote (subratllat): força nota i alterna el dígit al conjunt.
+    // Sense subratllat: respecta el mode de notes actual.
     fun applyRecognizedDigit(row: Int, col: Int, digit: Int, asNote: Boolean = false) {
-        if (boardState[row][col].isFixed || digit !in 1..9) return
+        if (boardState[row][col].isFixed) return
+        if (digit == 0) {
+            updateBoard(
+                boardState.mapIndexed { r, rowList ->
+                    rowList.mapIndexed { c, cell ->
+                        if (r == row && c == col) cell.copy(value = 0, notes = emptySet()) else cell
+                    }
+                }
+            )
+            return
+        }
+        if (digit !in 1..9) return
         updateBoard(
             boardState.mapIndexed { r, rowList ->
                 rowList.mapIndexed { c, cell ->
@@ -1782,10 +1794,32 @@ fun SudokuBoard(
     // Estat per al dibuix directe sobre la cel·la (mode Llapis AUTO)
     var drawingCell by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var paths by remember { mutableStateOf(listOf<Path>()) }
+    // Extrems (inici, fi) de cada traç, en paral·lel amb `paths`, per detectar diagonals
+    var strokeEnds by remember { mutableStateOf(listOf<Pair<Offset, Offset>>()) }
     var currentPath by remember { mutableStateOf(Path()) }
     var strokeEndTrigger by remember { mutableIntStateOf(0) }
     var cellWidthPx by remember { mutableStateOf(1) }
     var cellHeightPx by remember { mutableStateOf(1) }
+
+    // Signe del pendent d'un traç diagonal gran, o null si no és una diagonal.
+    // El signe és independent del sentit de dibuix (invertir inici/fi no el canvia).
+    fun diagonalSign(path: Path, ends: Pair<Offset, Offset>, w: Float, h: Float): Int? {
+        val b = path.getBounds()
+        // Prou gran per no ser soroll, però permetem X petites. El filtre real
+        // contra falsos positius és exigir DUES diagonals de pendent oposat.
+        val large = b.width >= 0.25f * w && b.height >= 0.25f * h
+        val dx = ends.second.x - ends.first.x
+        val dy = ends.second.y - ends.first.y
+        val diagonal = kotlin.math.abs(dx) >= 0.20f * w && kotlin.math.abs(dy) >= 0.20f * h
+        if (!large || !diagonal) return null
+        return if (dx * dy >= 0f) 1 else -1
+    }
+
+    // Una X són dues diagonals grans amb pendents oposats
+    fun isCrossGesture(cellPaths: List<Path>, ends: List<Pair<Offset, Offset>>, w: Float, h: Float): Boolean {
+        val signs = cellPaths.zip(ends).mapNotNull { (p, e) -> diagonalSign(p, e, w, h) }
+        return signs.contains(1) && signs.contains(-1)
+    }
 
     // Un traç és un "subratllat de nota" si és ample, gairebé horitzontal, i
     // se situa a la meitat inferior de la cel·la (distint dels traços de dígit)
@@ -1799,11 +1833,18 @@ fun SudokuBoard(
     }
 
     // Reconeix la tinta acumulada d'una cel·la i l'escriu al tauler.
-    // Si hi ha un traç de subratllat, el dígit es marca com a nota.
-    fun recognizeCell(cell: Pair<Int, Int>, cellPaths: List<Path>) {
+    // Una X esborra la cel·la; un subratllat marca el dígit com a nota.
+    fun recognizeCell(cell: Pair<Int, Int>, cellPaths: List<Path>, ends: List<Pair<Offset, Offset>>) {
         if (cellPaths.isEmpty() || recognizer == null) return
         val w = cellWidthPx.toFloat()
         val h = cellHeightPx.toFloat()
+
+        // Prioritat 1: una X esborra completament la cel·la (digit = 0)
+        if (isCrossGesture(cellPaths, ends, w, h)) {
+            onDigitDrawn?.invoke(cell.first, cell.second, 0, false)
+            return
+        }
+
         val asNote = cellPaths.any { isUnderline(it, w, h) }
         val digitStrokes = cellPaths.filterNot { isUnderline(it, w, h) }
         if (digitStrokes.isEmpty()) return  // només un subratllat: no fem res
@@ -1818,8 +1859,9 @@ fun SudokuBoard(
     LaunchedEffect(strokeEndTrigger) {
         if (strokeEndTrigger > 0 && paths.isNotEmpty() && drawingCell != null) {
             delay(900)
-            recognizeCell(drawingCell!!, paths)
+            recognizeCell(drawingCell!!, paths, strokeEnds)
             paths = emptyList()
+            strokeEnds = emptyList()
             currentPath = Path()
             drawingCell = null
         }
@@ -1896,14 +1938,17 @@ fun SudokuBoard(
                                                     // d'esborrar-la
                                                     val prev = drawingCell
                                                     if (prev != null && paths.isNotEmpty()) {
-                                                        recognizeCell(prev, paths)
+                                                        recognizeCell(prev, paths, strokeEnds)
                                                     }
                                                     drawingCell = Pair(row, col)
                                                     paths = emptyList()
+                                                    strokeEnds = emptyList()
                                                     // Reinicia (i cancel·la) el temporitzador
                                                     // pendent de la cel·la anterior
                                                     strokeEndTrigger++
                                                 }
+                                                val startPos = down.position
+                                                var lastPos = down.position
                                                 val newPath = Path().apply {
                                                     moveTo(down.position.x, down.position.y)
                                                 }
@@ -1915,13 +1960,15 @@ fun SudokuBoard(
                                                     val change = event.changes.firstOrNull { it.id == down.id }
                                                         ?: break
                                                     if (!change.pressed) {
-                                                        // pen-up: tanquem el traç
+                                                        // pen-up: tanquem el traç i desem els extrems
                                                         paths = paths + newPath
+                                                        strokeEnds = strokeEnds + (startPos to lastPos)
                                                         currentPath = Path()
                                                         strokeEndTrigger++
                                                         change.consume()
                                                         break
                                                     }
+                                                    lastPos = change.position
                                                     newPath.lineTo(
                                                         change.position.x,
                                                         change.position.y
