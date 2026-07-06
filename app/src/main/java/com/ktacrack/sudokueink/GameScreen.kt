@@ -457,25 +457,25 @@ fun GameScreen(
         }
     }
 
-    // Aplica un dígit reconegut a una cel·la, respectant el mode de notes actual
-    fun applyRecognizedDigit(row: Int, col: Int, digit: Int) {
+    // Aplica un dígit reconegut a una cel·la.
+    // asNote (punt al racó): força nota i alterna el dígit al conjunt.
+    // Sense punt: respecta el mode de notes actual.
+    fun applyRecognizedDigit(row: Int, col: Int, digit: Int, asNote: Boolean = false) {
         if (boardState[row][col].isFixed || digit !in 1..9) return
         updateBoard(
             boardState.mapIndexed { r, rowList ->
                 rowList.mapIndexed { c, cell ->
                     if (r == row && c == col) {
-                        when (notesMode) {
-                            NotesMode.MANUAL -> {
-                                val newNotes = if (cell.notes.contains(digit)) {
-                                    cell.notes - digit
-                                } else {
-                                    cell.notes + digit
-                                }
-                                cell.copy(notes = newNotes)
+                        val toNote = asNote || notesMode == NotesMode.MANUAL
+                        if (toNote) {
+                            val newNotes = if (cell.notes.contains(digit)) {
+                                cell.notes - digit
+                            } else {
+                                cell.notes + digit
                             }
-                            NotesMode.AUTO, NotesMode.OFF -> {
-                                cell.copy(value = digit, notes = emptySet())
-                            }
+                            cell.copy(notes = newNotes)
+                        } else {
+                            cell.copy(value = digit, notes = emptySet())
                         }
                     } else {
                         cell
@@ -661,8 +661,8 @@ fun GameScreen(
                         selectedCell = selectedCell,
                         pencilAutoMode = pencilMode == PencilMode.AUTO && !isPaused,
                         recognizer = digitRecognizer,
-                        onDigitDrawn = { row, col, digit ->
-                            if (!isPaused) applyRecognizedDigit(row, col, digit)
+                        onDigitDrawn = { row, col, digit, asNote ->
+                            if (!isPaused) applyRecognizedDigit(row, col, digit, asNote)
                         },
                         onCellClick = { row, col ->
                             if (!isPaused && !boardState[row][col].isFixed) {
@@ -1149,8 +1149,8 @@ fun GameScreen(
                 selectedCell = selectedCell,
                 pencilAutoMode = pencilMode == PencilMode.AUTO && !isPaused,
                 recognizer = digitRecognizer,
-                onDigitDrawn = { row, col, digit ->
-                    if (!isPaused) applyRecognizedDigit(row, col, digit)
+                onDigitDrawn = { row, col, digit, asNote ->
+                    if (!isPaused) applyRecognizedDigit(row, col, digit, asNote)
                 },
                 onCellClick = { row, col ->
                     if (!isPaused && !boardState[row][col].isFixed) {
@@ -1771,7 +1771,7 @@ fun SudokuBoard(
     onCellLongClick: ((Int, Int) -> Unit)? = null,
     pencilAutoMode: Boolean = false,
     recognizer: DigitRecognizer? = null,
-    onDigitDrawn: ((Int, Int, Int) -> Unit)? = null
+    onDigitDrawn: ((Int, Int, Int, Boolean) -> Unit)? = null
 ) {
     val scale = AdaptiveSizes.getScaleFactor()
     val configuration = LocalConfiguration.current
@@ -1784,15 +1784,34 @@ fun SudokuBoard(
     var paths by remember { mutableStateOf(listOf<Path>()) }
     var currentPath by remember { mutableStateOf(Path()) }
     var strokeEndTrigger by remember { mutableIntStateOf(0) }
-    var cellPxSize by remember { mutableStateOf(1) }
+    var cellWidthPx by remember { mutableStateOf(1) }
+    var cellHeightPx by remember { mutableStateOf(1) }
 
-    // Reconeix la tinta acumulada d'una cel·la i l'escriu al tauler
+    // Un traç és un "subratllat de nota" si és ample, gairebé horitzontal, i
+    // se situa a la meitat inferior de la cel·la (distint dels traços de dígit)
+    fun isUnderline(path: Path, w: Float, h: Float): Boolean {
+        val b = path.getBounds()
+        val wide = b.width >= 0.60f * w        // ocupa la major part de l'amplada
+        val flat = b.height <= 0.25f * h       // gairebé horitzontal
+        val cy = (b.top + b.bottom) / 2f
+        val low = cy >= 0.60f * h              // a la part baixa de la cel·la
+        return wide && flat && low
+    }
+
+    // Reconeix la tinta acumulada d'una cel·la i l'escriu al tauler.
+    // Si hi ha un traç de subratllat, el dígit es marca com a nota.
     fun recognizeCell(cell: Pair<Int, Int>, cellPaths: List<Path>) {
         if (cellPaths.isEmpty() || recognizer == null) return
+        val w = cellWidthPx.toFloat()
+        val h = cellHeightPx.toFloat()
+        val asNote = cellPaths.any { isUnderline(it, w, h) }
+        val digitStrokes = cellPaths.filterNot { isUnderline(it, w, h) }
+        if (digitStrokes.isEmpty()) return  // només un subratllat: no fem res
         val strokeWidthPx = 20f * scale
-        val bitmap = pathsToBitmap(cellPaths, cellPxSize.coerceAtLeast(1), strokeWidthPx)
+        val squarePx = minOf(cellWidthPx, cellHeightPx).coerceAtLeast(1)
+        val bitmap = pathsToBitmap(digitStrokes, squarePx, strokeWidthPx)
         val digit = recognizer.recognizeDigit(bitmap)
-        onDigitDrawn?.invoke(cell.first, cell.second, digit)
+        onDigitDrawn?.invoke(cell.first, cell.second, digit, asNote)
     }
 
     // Quan s'acaba un traç, esperem una pausa i reconeixem el dígit
@@ -1859,7 +1878,10 @@ fun SudokuBoard(
                             .then(
                                 if (canDrawHere) {
                                     Modifier
-                                        .onSizeChanged { cellPxSize = minOf(it.width, it.height) }
+                                        .onSizeChanged {
+                                            cellWidthPx = it.width
+                                            cellHeightPx = it.height
+                                        }
                                         .graphicsLayer {
                                             compositingStrategy = CompositingStrategy.Offscreen
                                         }
@@ -1961,7 +1983,8 @@ fun SudokuBoard(
                         // Overlay de tinta mentre es dibuixa en aquesta cel·la (Llapis AUTO)
                         if (isDrawingHere) {
                             Canvas(modifier = Modifier.fillMaxSize()) {
-                                val strokeWidthPx = 20f * scale
+                                // Traç visible més fi (30%); el gruix de reconeixement no canvia
+                                val strokeWidthPx = 6f * scale
                                 paths.forEach { p ->
                                     drawPath(
                                         path = p,
