@@ -142,7 +142,14 @@ fun GameScreen(
     var showTimeoutDialog by remember(resetTrigger) { mutableStateOf(false) }
     var showResumeDialog by remember(resetTrigger) { mutableStateOf(savedGame != null) }
     var showDrawingCanvas by remember { mutableStateOf(false) }
-    var pencilMode by remember(resetTrigger) { mutableStateOf(PencilMode.OFF) }
+    var pencilMode by remember(resetTrigger) {
+        mutableStateOf(PencilModeManager.loadPencilMode(context))
+    }
+
+    // Recorda l'última selecció de mode Llapis entre partides i sessions
+    LaunchedEffect(pencilMode) {
+        PencilModeManager.savePencilMode(context, pencilMode)
+    }
 
     // Reconeixedor compartit per al mode Llapis AUTO (dibuix directe sobre la cel·la)
     val digitRecognizer = remember { DigitRecognizer(context) }
