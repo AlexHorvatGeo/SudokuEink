@@ -162,7 +162,7 @@ fun DrawingCanvas(
     }
 }
 
-private fun pathsToBitmap(paths: List<Path>, size: Int, strokeWidth: Float): Bitmap {
+internal fun pathsToBitmap(paths: List<Path>, size: Int, strokeWidth: Float): Bitmap {
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = android.graphics.Canvas(bitmap)
     canvas.drawColor(android.graphics.Color.BLACK)

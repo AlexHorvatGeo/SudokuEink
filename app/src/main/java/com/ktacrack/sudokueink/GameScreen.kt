@@ -31,10 +31,24 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import kotlinx.coroutines.delay
 
 
 enum class NotesMode {
     OFF, MANUAL, AUTO
+}
+
+enum class PencilMode {
+    OFF, ON, AUTO
 }
 
 @Composable
@@ -128,7 +142,13 @@ fun GameScreen(
     var showTimeoutDialog by remember(resetTrigger) { mutableStateOf(false) }
     var showResumeDialog by remember(resetTrigger) { mutableStateOf(savedGame != null) }
     var showDrawingCanvas by remember { mutableStateOf(false) }
-    var isPencilMode by remember(resetTrigger) { mutableStateOf(false) }
+    var pencilMode by remember(resetTrigger) { mutableStateOf(PencilMode.OFF) }
+
+    // Reconeixedor compartit per al mode Llapis AUTO (dibuix directe sobre la cel·la)
+    val digitRecognizer = remember { DigitRecognizer(context) }
+    DisposableEffect(Unit) {
+        onDispose { digitRecognizer.close() }
+    }
 
     // ✅ ESBORRADES: showAchievementUnlocked i unlockedAchievement (no s'usaven)
     var pendingVictoryDialog by remember { mutableStateOf(false) }
@@ -430,6 +450,34 @@ fun GameScreen(
         }
     }
 
+    // Aplica un dígit reconegut a una cel·la, respectant el mode de notes actual
+    fun applyRecognizedDigit(row: Int, col: Int, digit: Int) {
+        if (boardState[row][col].isFixed || digit !in 1..9) return
+        updateBoard(
+            boardState.mapIndexed { r, rowList ->
+                rowList.mapIndexed { c, cell ->
+                    if (r == row && c == col) {
+                        when (notesMode) {
+                            NotesMode.MANUAL -> {
+                                val newNotes = if (cell.notes.contains(digit)) {
+                                    cell.notes - digit
+                                } else {
+                                    cell.notes + digit
+                                }
+                                cell.copy(notes = newNotes)
+                            }
+                            NotesMode.AUTO, NotesMode.OFF -> {
+                                cell.copy(value = digit, notes = emptySet())
+                            }
+                        }
+                    } else {
+                        cell
+                    }
+                }
+            }
+        )
+    }
+
     LaunchedEffect(timeLimitSeconds, currentElapsedSeconds, showVictoryDialog) {
         if (timeLimitSeconds != null &&
             !showVictoryDialog &&
@@ -604,9 +652,14 @@ fun GameScreen(
                     SudokuBoard(
                         board = boardState,
                         selectedCell = selectedCell,
+                        pencilAutoMode = pencilMode == PencilMode.AUTO && !isPaused,
+                        recognizer = digitRecognizer,
+                        onDigitDrawn = { row, col, digit ->
+                            if (!isPaused) applyRecognizedDigit(row, col, digit)
+                        },
                         onCellClick = { row, col ->
                             if (!isPaused && !boardState[row][col].isFixed) {
-                                if (isPencilMode) {
+                                if (pencilMode == PencilMode.ON) {
                                     selectedCell = Pair(row, col)
                                     showDrawingCanvas = true
                                 } else {
@@ -758,7 +811,11 @@ fun GameScreen(
                 Button(
                     onClick = {
                         if (!isPaused) {
-                            isPencilMode = !isPencilMode
+                            pencilMode = when (pencilMode) {
+                                PencilMode.OFF -> PencilMode.ON
+                                PencilMode.ON -> PencilMode.AUTO
+                                PencilMode.AUTO -> PencilMode.OFF
+                            }
                         }
                     },
                     modifier = Modifier
@@ -766,13 +823,17 @@ fun GameScreen(
                         .height((50 * scale).dp),
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isPencilMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                        contentColor = if (isPencilMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        containerColor = if (pencilMode != PencilMode.OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                        contentColor = if (pencilMode != PencilMode.OFF) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                     ),
                     border = BorderStroke((2 * scale).dp, MaterialTheme.colorScheme.onBackground)
                 ) {
                     Text(
-                        if (isPencilMode) strings.pencilOn else strings.pencilOff,
+                        text = when (pencilMode) {
+                            PencilMode.OFF -> strings.pencilOff
+                            PencilMode.ON -> strings.pencilOn
+                            PencilMode.AUTO -> strings.pencilAuto
+                        },
                         fontSize = (20 * scale).sp
                     )
                 }
@@ -1079,9 +1140,14 @@ fun GameScreen(
             SudokuBoard(
                 board = boardState,
                 selectedCell = selectedCell,
+                pencilAutoMode = pencilMode == PencilMode.AUTO && !isPaused,
+                recognizer = digitRecognizer,
+                onDigitDrawn = { row, col, digit ->
+                    if (!isPaused) applyRecognizedDigit(row, col, digit)
+                },
                 onCellClick = { row, col ->
                     if (!isPaused && !boardState[row][col].isFixed) {
-                        if (isPencilMode) {
+                        if (pencilMode == PencilMode.ON) {
                             selectedCell = Pair(row, col)
                             showDrawingCanvas = true
                         } else {
@@ -1173,7 +1239,11 @@ fun GameScreen(
                 Button(
                     onClick = {
                         if (!isPaused) {
-                            isPencilMode = !isPencilMode
+                            pencilMode = when (pencilMode) {
+                                PencilMode.OFF -> PencilMode.ON
+                                PencilMode.ON -> PencilMode.AUTO
+                                PencilMode.AUTO -> PencilMode.OFF
+                            }
                         }
                     },
                     modifier = Modifier
@@ -1182,13 +1252,17 @@ fun GameScreen(
                         .padding(horizontal = (1 * scale).dp),
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isPencilMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                        contentColor = if (isPencilMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        containerColor = if (pencilMode != PencilMode.OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                        contentColor = if (pencilMode != PencilMode.OFF) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                     ),
                     border = BorderStroke((2 * scale).dp, MaterialTheme.colorScheme.onBackground)
                 ) {
                     Text(
-                        if (isPencilMode) strings.pencilOn else strings.pencilOff,
+                        text = when (pencilMode) {
+                            PencilMode.OFF -> strings.pencilOff
+                            PencilMode.ON -> strings.pencilOn
+                            PencilMode.AUTO -> strings.pencilAuto
+                        },
                         fontSize = (20 * scale).sp
                     )
                 }
@@ -1687,13 +1761,43 @@ fun SudokuBoard(
     // ✅ ESBORRAT: solution (no s'usava)
     selectedCell: Pair<Int, Int>?,
     onCellClick: (Int, Int) -> Unit,
-    onCellLongClick: ((Int, Int) -> Unit)? = null
+    onCellLongClick: ((Int, Int) -> Unit)? = null,
+    pencilAutoMode: Boolean = false,
+    recognizer: DigitRecognizer? = null,
+    onDigitDrawn: ((Int, Int, Int) -> Unit)? = null
 ) {
     val scale = AdaptiveSizes.getScaleFactor()
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
     val cellSize = (screenWidthDp - 32) / 9
     val noteScale = (cellSize / 40f).coerceIn(0.2f, 2.2f)
+
+    // Estat per al dibuix directe sobre la cel·la (mode Llapis AUTO)
+    var drawingCell by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var paths by remember { mutableStateOf(listOf<Path>()) }
+    var currentPath by remember { mutableStateOf(Path()) }
+    var strokeEndTrigger by remember { mutableIntStateOf(0) }
+    var cellPxSize by remember { mutableStateOf(1) }
+
+    // Reconeix la tinta acumulada d'una cel·la i l'escriu al tauler
+    fun recognizeCell(cell: Pair<Int, Int>, cellPaths: List<Path>) {
+        if (cellPaths.isEmpty() || recognizer == null) return
+        val strokeWidthPx = 20f * scale
+        val bitmap = pathsToBitmap(cellPaths, cellPxSize.coerceAtLeast(1), strokeWidthPx)
+        val digit = recognizer.recognizeDigit(bitmap)
+        onDigitDrawn?.invoke(cell.first, cell.second, digit)
+    }
+
+    // Quan s'acaba un traç, esperem una pausa i reconeixem el dígit
+    LaunchedEffect(strokeEndTrigger) {
+        if (strokeEndTrigger > 0 && paths.isNotEmpty() && drawingCell != null) {
+            delay(900)
+            recognizeCell(drawingCell!!, paths)
+            paths = emptyList()
+            currentPath = Path()
+            drawingCell = null
+        }
+    }
     val notePadding = when {
         screenWidthDp < 360 -> (2 * scale).dp
         screenWidthDp < 600 -> (2 * scale).dp
@@ -1730,20 +1834,81 @@ fun SudokuBoard(
                     val bottomBorder = if (row == 8) 0.dp else (0.5 * scale).dp
                     val rightBorder = if (col == 8) 0.dp else (0.5 * scale).dp
 
+                    val isDrawingHere = drawingCell == Pair(row, col)
+                    val canDrawHere = pencilAutoMode && !cell.isFixed
+
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
                             .background(
                                 when {
+                                    isDrawingHere -> Color(0xFFFFCCBC)
                                     isSelected -> Color(0xFFFFCCBC)
                                     cell.isFixed -> Color.LightGray
                                     else -> Color.White
                                 }
                             )
-                            .combinedClickable(
-                                onClick = { onCellClick(row, col) },
-                                onLongClick = { onCellLongClick?.invoke(row, col) }
+                            .then(
+                                if (canDrawHere) {
+                                    Modifier
+                                        .onSizeChanged { cellPxSize = minOf(it.width, it.height) }
+                                        .graphicsLayer {
+                                            compositingStrategy = CompositingStrategy.Offscreen
+                                        }
+                                        .pointerInput(row, col) {
+                                            // awaitEachGesture captura el pen-down immediatament,
+                                            // sense el "touch slop" que retarda detectDragGestures
+                                            awaitEachGesture {
+                                                val down = awaitFirstDown(requireUnconsumed = false)
+                                                if (drawingCell != Pair(row, col)) {
+                                                    // Si hi havia tinta pendent en una altra
+                                                    // cel·la, la reconeixem ara mateix en lloc
+                                                    // d'esborrar-la
+                                                    val prev = drawingCell
+                                                    if (prev != null && paths.isNotEmpty()) {
+                                                        recognizeCell(prev, paths)
+                                                    }
+                                                    drawingCell = Pair(row, col)
+                                                    paths = emptyList()
+                                                    // Reinicia (i cancel·la) el temporitzador
+                                                    // pendent de la cel·la anterior
+                                                    strokeEndTrigger++
+                                                }
+                                                val newPath = Path().apply {
+                                                    moveTo(down.position.x, down.position.y)
+                                                }
+                                                currentPath = newPath
+                                                down.consume()
+
+                                                while (true) {
+                                                    val event = awaitPointerEvent()
+                                                    val change = event.changes.firstOrNull { it.id == down.id }
+                                                        ?: break
+                                                    if (!change.pressed) {
+                                                        // pen-up: tanquem el traç
+                                                        paths = paths + newPath
+                                                        currentPath = Path()
+                                                        strokeEndTrigger++
+                                                        change.consume()
+                                                        break
+                                                    }
+                                                    newPath.lineTo(
+                                                        change.position.x,
+                                                        change.position.y
+                                                    )
+                                                    // Forcem recomposició de l'overlay de tinta
+                                                    currentPath = Path().apply { addPath(newPath) }
+                                                    change.consume()
+                                                }
+                                            }
+                                        }
+                                } else {
+                                    Modifier.combinedClickable(
+                                        onClick = { onCellClick(row, col) },
+                                        onLongClick = { onCellLongClick?.invoke(row, col) }
+                                    )
+                                }
                             )
                             .drawBehind {
                                 drawLine(
@@ -1786,6 +1951,24 @@ fun SudokuBoard(
                             },
                         contentAlignment = Alignment.Center
                     ) {
+                        // Overlay de tinta mentre es dibuixa en aquesta cel·la (Llapis AUTO)
+                        if (isDrawingHere) {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val strokeWidthPx = 20f * scale
+                                paths.forEach { p ->
+                                    drawPath(
+                                        path = p,
+                                        color = Color.Black,
+                                        style = Stroke(width = strokeWidthPx)
+                                    )
+                                }
+                                drawPath(
+                                    path = currentPath,
+                                    color = Color.Black,
+                                    style = Stroke(width = strokeWidthPx)
+                                )
+                            }
+                        }
                         if (cell.value != 0) {
                             Text(
                                 text = cell.value.toString(),

@@ -61,6 +61,7 @@ interface Strings {
     val pencil: String
     val pencilOn: String
     val pencilOff: String
+    val pencilAuto: String
     val notesOn: String
     val notesOff: String
     val notesManual: String
@@ -193,6 +194,7 @@ object StringsCa : Strings {
     override val pencil = "Llapis"
     override val pencilOn = "Llapis ON"
     override val pencilOff = "Llapis OFF"
+    override val pencilAuto = "Llapis AUTO"
     override val notesOn = "Notes ON"
     override val notesOff = "Notes OFF"
     override val erase = "Esborrar"
@@ -317,6 +319,7 @@ object StringsEs : Strings {
     override val pencil = "Lápiz"
     override val pencilOn = "Lápiz ON"
     override val pencilOff = "Lápiz OFF"
+    override val pencilAuto = "Lápiz AUTO"
     override val notesOn = "Notas ON"
     override val notesOff = "Notas OFF"
     override val erase = "Borrar"
@@ -443,6 +446,7 @@ object StringsEn : Strings {
     override val pencil = "Pencil"
     override val pencilOn = "Pencil ON"
     override val pencilOff = "Pencil OFF"
+    override val pencilAuto = "Pencil AUTO"
     override val notesOn = "Notes ON"
     override val notesOff = "Notes OFF"
     override val erase = "Erase"
