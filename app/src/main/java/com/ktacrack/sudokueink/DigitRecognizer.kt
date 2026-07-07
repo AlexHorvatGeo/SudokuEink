@@ -17,18 +17,13 @@ class DigitRecognizer(context: Context) {
     private var interpreter: Interpreter
     private val inputSize = 28
 
+    // Mostres de cal·libració de l'usuari (vectors 28x28 etiquetats), carregades un cop.
+    private val calibrationSamples: List<CalibrationSample> =
+        CalibrationStore.load(context)
+
     init {
         val model = loadModelFile(context)
         interpreter = Interpreter(model)
-
-        // DEBUG: Veure dimensions
-        val inputTensor = interpreter.getInputTensor(0)
-        val outputTensor = interpreter.getOutputTensor(0)
-
-        println("Input shape: ${inputTensor.shape().contentToString()}")
-        println("Input type: ${inputTensor.dataType()}")
-        println("Output shape: ${outputTensor.shape().contentToString()}")
-        println("Output type: ${outputTensor.dataType()}")
     }
 
     private fun loadModelFile(context: Context): MappedByteBuffer {
@@ -45,24 +40,81 @@ class DigitRecognizer(context: Context) {
             // Normalitzar a l'estil MNIST: dígit de ~20px centrat en un llenç 28x28
             val scaledBitmap = centerAndCropDigit(bitmap)
 
-            // Convertir a ByteBuffer
-            val byteBuffer = convertBitmapToByteBuffer(scaledBitmap)
+            // Vector de característiques (28x28 en gris 0-255) per al model i el k-NN
+            val features = toFeatureVector(scaledBitmap)
 
             // Array de sortida (10 probabilitats per 0-9)
             val result = Array(1) { FloatArray(10) }
+            interpreter.run(featuresToByteBuffer(features), result)
 
-            // Executar inferència
-            interpreter.run(byteBuffer, result)
-
-            // Retornar el dígit amb més probabilitat
             val sorted = result[0].indices.sortedByDescending { result[0][it] }
-            return sorted[0]
+            val modelDigit = sorted[0]
+            val modelConfidence = result[0][modelDigit]
+
+            // k-NN de cal·libració: només substitueix el model quan aquest NO està
+            // segur (baixa confiança) i el dibuix s'assembla molt a una mostra teva.
+            if (modelConfidence < CONFIDENCE_THRESHOLD && calibrationSamples.isNotEmpty()) {
+                val nearest = calibrationSamples.minByOrNull { distanceSq(features, it.features) }
+                if (nearest != null && distanceSq(features, nearest.features) < DISTANCE_THRESHOLD) {
+                    return nearest.label
+                }
+            }
+            return modelDigit
 
         } catch (e: Exception) {
             println("ERROR reconeixement: ${e.message}")
             e.printStackTrace()
             return 0
         }
+    }
+
+    // Resultat detallat: usat per la pantalla de cal·libració per decidir si cal
+    // capturar una mostra (model incorrecte o poc segur).
+    data class Recognition(val digit: Int, val confidence: Float, val features: IntArray)
+
+    fun recognizeDetailed(bitmap: Bitmap): Recognition {
+        val scaledBitmap = centerAndCropDigit(bitmap)
+        val features = toFeatureVector(scaledBitmap)
+        val result = Array(1) { FloatArray(10) }
+        interpreter.run(featuresToByteBuffer(features), result)
+        val sorted = result[0].indices.sortedByDescending { result[0][it] }
+        return Recognition(sorted[0], result[0][sorted[0]], features)
+    }
+
+    // Vector de característiques: 28x28 valors de gris (0-255), fila per fila
+    private fun toFeatureVector(bitmap: Bitmap): IntArray {
+        val out = IntArray(inputSize * inputSize)
+        val px = IntArray(inputSize * inputSize)
+        bitmap.getPixels(px, 0, inputSize, 0, 0, inputSize, inputSize)
+        for (i in px.indices) {
+            val p = px[i]
+            out[i] = (Color.red(p) + Color.green(p) + Color.blue(p)) / 3
+        }
+        return out
+    }
+
+    private fun featuresToByteBuffer(features: IntArray): ByteBuffer {
+        val byteBuffer = ByteBuffer.allocateDirect(inputSize * inputSize)
+        byteBuffer.order(ByteOrder.nativeOrder())
+        for (v in features) byteBuffer.put(v.toByte())
+        return byteBuffer
+    }
+
+    private fun distanceSq(a: IntArray, b: IntArray): Long {
+        var sum = 0L
+        for (i in a.indices) {
+            val d = (a[i] - b[i]).toLong()
+            sum += d * d
+        }
+        return sum
+    }
+
+    companion object {
+        // El model es considera "poc segur" per sota d'aquesta confiança
+        private const val CONFIDENCE_THRESHOLD = 0.85f
+        // Distància màxima (suma de quadrats sobre 784 píxels 0-255) per confiar
+        // en una mostra de cal·libració. Conservador: només coincidències molt properes.
+        private const val DISTANCE_THRESHOLD = 784L * 90L * 90L
     }
 
     // Normalitza a l'estil MNIST: retalla el dígit, l'escala perquè el costat més
@@ -128,27 +180,6 @@ class DigitRecognizer(context: Context) {
 
         return out
     }
-
-    private fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
-        // El model espera UINT8 (0-255), no FLOAT32
-        val byteBuffer = ByteBuffer.allocateDirect(1 * inputSize * inputSize)
-        byteBuffer.order(ByteOrder.nativeOrder())
-
-        val intValues = IntArray(inputSize * inputSize)
-        bitmap.getPixels(intValues, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-
-        for (i in 0 until inputSize) {
-            for (j in 0 until inputSize) {
-                val pixel = intValues[i * inputSize + j]
-                // Convertir a escala de grisos 0-255 (UINT8)
-                val gray = ((Color.red(pixel) + Color.green(pixel) + Color.blue(pixel)) / 3).toByte()
-                byteBuffer.put(gray)
-            }
-        }
-
-        return byteBuffer
-    }
-
 
     fun close() {
         interpreter.close()

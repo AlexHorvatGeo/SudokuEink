@@ -62,6 +62,23 @@ interface Strings {
     val pencilOn: String
     val pencilOff: String
     val pencilAuto: String
+
+    // Calibració de l'escriptura
+    val calibrate: String
+    val calibrateTitle: String
+    val calibrateIntro: String
+    val calibrateWriteSingle: String
+    val calibrateWriteMultiple: String
+    val calibrateWriteRow: String
+    val calibrateRewrite: String
+    val calibrateGood: String
+    val calibrateLearned: String
+    val calibrateNext: String
+    val calibrateSkip: String
+    val calibrateDone: String
+    val calibrateReset: String
+    val calibrateSamplesStored: String
+    val calibrateClear: String
     val notesOn: String
     val notesOff: String
     val notesManual: String
@@ -195,6 +212,22 @@ object StringsCa : Strings {
     override val pencilOn = "Llapis ON"
     override val pencilOff = "Llapis OFF"
     override val pencilAuto = "Llapis AUTO"
+
+    override val calibrate = "✍️ Calibrar escriptura"
+    override val calibrateTitle = "Calibrar escriptura"
+    override val calibrateIntro = "Escriu cada dígit tal com ho faries al joc. Si el model l'encerta, no cal fer res. Si falla, aprendrà la teva manera d'escriure'l."
+    override val calibrateWriteSingle = "Escriu un"
+    override val calibrateWriteMultiple = "Escriu aquests números a la cel·la:"
+    override val calibrateWriteRow = "Escriu aquesta fila, d'esquerra a dreta:"
+    override val calibrateRewrite = "No s'han detectat tots els dígits. Torna-ho a escriure"
+    override val calibrateGood = "✓ Reconegut correctament"
+    override val calibrateLearned = "✓ Après la teva manera d'escriure'l"
+    override val calibrateNext = "Següent"
+    override val calibrateSkip = "Ometre"
+    override val calibrateDone = "Fet"
+    override val calibrateReset = "Reiniciar calibració"
+    override val calibrateSamplesStored = "Mostres desades"
+    override val calibrateClear = "Esborrar dades de calibració"
     override val notesOn = "Notes ON"
     override val notesOff = "Notes OFF"
     override val erase = "Esborrar"
@@ -320,6 +353,22 @@ object StringsEs : Strings {
     override val pencilOn = "Lápiz ON"
     override val pencilOff = "Lápiz OFF"
     override val pencilAuto = "Lápiz AUTO"
+
+    override val calibrate = "✍️ Calibrar escritura"
+    override val calibrateTitle = "Calibrar escritura"
+    override val calibrateIntro = "Escribe cada dígito como lo harías en el juego. Si el modelo acierta, no hace falta nada. Si falla, aprenderá tu forma de escribirlo."
+    override val calibrateWriteSingle = "Escribe un"
+    override val calibrateWriteMultiple = "Escribe estos números en la celda:"
+    override val calibrateWriteRow = "Escribe esta fila, de izquierda a derecha:"
+    override val calibrateRewrite = "No se han detectado todos los dígitos. Vuelve a escribir"
+    override val calibrateGood = "✓ Reconocido correctamente"
+    override val calibrateLearned = "✓ Aprendida tu forma de escribirlo"
+    override val calibrateNext = "Siguiente"
+    override val calibrateSkip = "Omitir"
+    override val calibrateDone = "Hecho"
+    override val calibrateReset = "Reiniciar calibración"
+    override val calibrateSamplesStored = "Muestras guardadas"
+    override val calibrateClear = "Borrar datos de calibración"
     override val notesOn = "Notas ON"
     override val notesOff = "Notas OFF"
     override val erase = "Borrar"
@@ -447,6 +496,22 @@ object StringsEn : Strings {
     override val pencilOn = "Pencil ON"
     override val pencilOff = "Pencil OFF"
     override val pencilAuto = "Pencil AUTO"
+
+    override val calibrate = "✍️ Calibrate handwriting"
+    override val calibrateTitle = "Calibrate handwriting"
+    override val calibrateIntro = "Write each digit as you would in the game. If the model reads it correctly, nothing is needed. If it gets it wrong, it will learn how you write it."
+    override val calibrateWriteSingle = "Write a"
+    override val calibrateWriteMultiple = "Write these numbers in the cell:"
+    override val calibrateWriteRow = "Write this row, left to right:"
+    override val calibrateRewrite = "Didn't detect every digit. Please rewrite"
+    override val calibrateGood = "✓ Recognized correctly"
+    override val calibrateLearned = "✓ Learned how you write it"
+    override val calibrateNext = "Next"
+    override val calibrateSkip = "Skip"
+    override val calibrateDone = "Done"
+    override val calibrateReset = "Reset calibration"
+    override val calibrateSamplesStored = "Samples stored"
+    override val calibrateClear = "Clear calibration data"
     override val notesOn = "Notes ON"
     override val notesOff = "Notes OFF"
     override val erase = "Erase"

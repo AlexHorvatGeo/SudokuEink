@@ -20,6 +20,7 @@ sealed class Screen(val route: String) {
         fun createRoute(difficulty: Difficulty) = "daily_game/${difficulty.name}"
     }
     object Statistics : Screen("statistics")
+    object Calibration : Screen("calibration")
 
 }
 
@@ -58,6 +59,7 @@ fun AppNavigation(onThemeChange: (Boolean) -> Unit = {}) {
                 onStatisticsClick = {
                     navController.navigate(Screen.Statistics.route)
                 },
+                onCalibrationClick = { navController.navigate(Screen.Calibration.route) },
                 onAchievementsClick = { navController.navigate("achievements") },
                 onBackToMainMenu = {
                     navController.navigate(Screen.Menu.createRoute("none")) {
@@ -129,6 +131,17 @@ fun AppNavigation(onThemeChange: (Boolean) -> Unit = {}) {
         composable("achievements") {
             AchievementsScreen(
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Pantalla de calibració d'escriptura
+        composable(Screen.Calibration.route) {
+            CalibrationScreen(
+                onBack = {
+                    navController.navigate(Screen.Menu.createRoute("none")) {
+                        popUpTo(Screen.Menu.route) { inclusive = true }
+                    }
+                }
             )
         }
     }

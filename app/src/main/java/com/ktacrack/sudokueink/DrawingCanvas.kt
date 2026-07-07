@@ -128,7 +128,7 @@ fun DrawingCanvas(
                     if (paths.isNotEmpty()) {
                         // Convertir canvas a bitmap amb la mida escalada
                         val canvasHeightPx = with(density) { (300 * scaleFactor).dp.toPx().toInt() }
-                        val strokeWidth = 20f * scaleFactor
+                        val strokeWidth = recognitionStrokeWidth(canvasHeightPx)
                         val bitmap = pathsToBitmap(paths, canvasHeightPx, strokeWidth)
                         val digit = recognizer.recognizeDigit(bitmap)
                         onDigitRecognized(digit)
@@ -161,6 +161,14 @@ fun DrawingCanvas(
         }
     }
 }
+
+// Gruix del traç per al bitmap de reconeixement, proporcional a la mida del llenç.
+// Clau: el model MNIST és molt sensible a la relació gruix/alçada del dígit. Si
+// fixem el gruix en píxels absoluts, una cel·la de joc petita (~100px) el fa
+// semblar molt més gruixut que la cel·la gran de calibració (~450px), i en
+// reduir-lo a 20px el dígit s'omple i es reconeix malament. Fer-lo proporcional
+// fa que el dígit normalitzat es vegi igual a totes les pantalles.
+internal fun recognitionStrokeWidth(size: Int): Float = size * 0.06f
 
 internal fun pathsToBitmap(paths: List<Path>, size: Int, strokeWidth: Float): Bitmap {
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)

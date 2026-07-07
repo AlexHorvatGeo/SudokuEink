@@ -1840,51 +1840,9 @@ fun SudokuBoard(
         return false
     }
 
-    // Agrupa els traços per solapament 2D: dos traços van al mateix grup si les
-    // seves caixes es creuen (solapen en X i en Y). El solapament és transitiu
-    // (union-find), així els traços d'un dígit es fusionen encara que estiguin
-    // en qualsevol lloc de la cel·la. Dígits en regions separades = grups separats.
-    fun clusterByOverlap(cellPaths: List<Path>): List<List<Path>> {
-        if (cellPaths.isEmpty()) return emptyList()
-        val boxes = cellPaths.map { it.getBounds() }
-        val parent = IntArray(cellPaths.size) { it }
-
-        fun find(x: Int): Int {
-            var r = x
-            while (parent[r] != r) r = parent[r]
-            var c = x
-            while (parent[c] != c) { val n = parent[c]; parent[c] = r; c = n }
-            return r
-        }
-
-        for (i in boxes.indices) {
-            for (j in i + 1 until boxes.size) {
-                val a = boxes[i]
-                val b = boxes[j]
-                val xOverlap = minOf(a.right, b.right) - maxOf(a.left, b.left)
-                val yOverlap = minOf(a.bottom, b.bottom) - maxOf(a.top, b.top)
-                if (xOverlap > 0f && yOverlap > 0f) {
-                    parent[find(i)] = find(j)
-                }
-            }
-        }
-
-        // Agrupa per arrel, i ordena els grups d'esquerra a dreta per estabilitat
-        val groups = cellPaths.indices.groupBy { find(it) }
-        return groups.values
-            .map { idxs -> idxs.map { cellPaths[it] } }
-            .sortedBy { grp -> grp.minOf { it.getBounds().left } }
-    }
-
-    // Combina les caixes d'un grup de traços en una de sola
-    fun unionBounds(cluster: List<Path>): androidx.compose.ui.geometry.Rect {
-        return cluster.map { it.getBounds() }.reduce { a, b ->
-            androidx.compose.ui.geometry.Rect(
-                minOf(a.left, b.left), minOf(a.top, b.top),
-                maxOf(a.right, b.right), maxOf(a.bottom, b.bottom)
-            )
-        }
-    }
+    // Segmentació de traços: veure StrokeUtils (compartit amb la calibració)
+    fun clusterByOverlap(cellPaths: List<Path>) = StrokeUtils.clusterByOverlap(cellPaths)
+    fun unionBounds(cluster: List<Path>) = StrokeUtils.unionBounds(cluster)
 
     // Un GRUP és un "subratllat de nota" si és ample, gairebé horitzontal i baix.
     // Com que el subratllat sempre és un traç separat que no se solapa amb cap
@@ -1912,8 +1870,8 @@ fun SudokuBoard(
             return
         }
 
-        val strokeWidthPx = 20f * scale
         val squarePx = minOf(cellWidthPx, cellHeightPx).coerceAtLeast(1)
+        val strokeWidthPx = recognitionStrokeWidth(squarePx)
 
         // Pas 1: agrupem TOTS els traços per solapament 2D (un grup = un dígit o
         // el subratllat, que sempre és un traç separat que no se solapa amb res).

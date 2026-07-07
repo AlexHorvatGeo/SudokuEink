@@ -24,6 +24,7 @@ fun MainScreen(
     onStatisticsClick: () -> Unit = {},
     onDailySudokuClick: () -> Unit = {},
     onAchievementsClick: () -> Unit = {},
+    onCalibrationClick: () -> Unit = {},
     onBackToMainMenu: () -> Unit = {},
     onThemeChange: (Boolean) -> Unit = {}
 ) {
@@ -296,6 +297,22 @@ fun MainScreen(
                         border = BorderStroke((2 * scale).dp, Color.Black)
                     ) {
                         Text(strings.achievements, fontSize = (34 * scale).sp)
+                    }
+
+                    Spacer(modifier = Modifier.height((20 * scale).dp))
+
+                    Button(
+                        onClick = onCalibrationClick,
+                        modifier = Modifier
+                            .height((70 * scale).dp)
+                            .fillMaxWidth(0.8f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Black
+                        ),
+                        border = BorderStroke((2 * scale).dp, Color.Black)
+                    ) {
+                        Text(strings.calibrate, fontSize = (28 * scale).sp)
                     }
                 }
 
